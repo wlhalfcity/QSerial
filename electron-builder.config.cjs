@@ -14,6 +14,9 @@ module.exports = {
   files: [
     'packages/main/dist/**/*',
     'packages/renderer/dist/**/*',
+    // 内置插件（智能助手、设备特征库等）打进 asar，
+    // 插件对 @qserial/shared 的导入经 asar 内 node_modules 解析
+    'plugins/**/*',
     'package.json',
     {
       from: 'packages/shared',
