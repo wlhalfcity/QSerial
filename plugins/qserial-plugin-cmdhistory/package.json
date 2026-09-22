@@ -1,0 +1,51 @@
+{
+  "name": "qserial-plugin-cmdhistory",
+  "version": "1.0.0",
+  "author": "QSerial Team",
+  "description": "内置命令历史插件：记录终端发送过的命令行，输入时按 ↑ 自动匹配历史命令。",
+  "main": "index.mjs",
+  "qserial": {
+    "id": "qserial-plugin-cmdhistory",
+    "permissions": [
+      "terminal:observe",
+      "terminal:write",
+      "connection:read",
+      "config",
+      "log"
+    ],
+    "builtin": true,
+    "configSchema": {
+      "fields": [
+        {
+          "key": "maxHistory",
+          "label": "历史上限条数",
+          "type": "number",
+          "default": 1000,
+          "description": "超出后丢弃最旧的命令",
+          "min": 50,
+          "max": 10000
+        },
+        {
+          "key": "minInputLength",
+          "label": "建议触发最小字符数",
+          "type": "number",
+          "default": 2,
+          "description": "当前输入不足该长度时不提供建议；短于此的命令也不入史",
+          "min": 1,
+          "max": 20
+        },
+        {
+          "key": "matchMode",
+          "label": "匹配方式",
+          "type": "select",
+          "default": "prefix-first",
+          "options": [
+            { "value": "prefix-first", "label": "前缀优先，无前缀命中时子串兜底" },
+            { "value": "prefix", "label": "仅前缀匹配" },
+            { "value": "substring", "label": "前缀 + 子串全部参与" }
+          ]
+        }
+      ]
+    }
+  }
+}
