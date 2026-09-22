@@ -3,8 +3,8 @@
  * 用于自动记录功能：根据终端名称和打开时间生成日志文件路径
  */
 
-/** 文件名非法字符（Windows 保留字符 + 控制符） */
-const ILLEGAL_CHARS = /[\\/:*?"<>|\u0000-\u001f]/g;
+/** 文件名非法字符（Windows 保留字符） */
+const ILLEGAL_CHARS = /[\\/:*?"<>|]/g;
 
 /**
  * 清理终端名称中的非法文件名字符
@@ -12,7 +12,13 @@ const ILLEGAL_CHARS = /[\\/:*?"<>|\u0000-\u001f]/g;
  * @returns 可安全用作文件名的字符串，空名回退为 terminal
  */
 export function sanitizeLogName(name: string): string {
-  const cleaned = name.replace(ILLEGAL_CHARS, '-').trim();
+  const cleaned = name
+    .replace(ILLEGAL_CHARS, '-')
+    // 控制字符（0x00-0x1F）不允许出现在文件名中，直接剔除
+    .split('')
+    .filter((ch) => ch.charCodeAt(0) > 31)
+    .join('')
+    .trim();
   return cleaned || 'terminal';
 }
 

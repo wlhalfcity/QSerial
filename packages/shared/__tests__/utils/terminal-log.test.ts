@@ -15,8 +15,8 @@ describe('sanitizeLogName', () => {
     expect(sanitizeLogName('a\\b:c*d?e"f<g>h|i')).toBe('a-b-c-d-e-f-g-h-i');
   });
 
-  it('替换控制字符', () => {
-    expect(sanitizeLogName('a\u0000b\u001fc')).toBe('a-b-c');
+  it('剔除控制字符', () => {
+    expect(sanitizeLogName('a\u0000b\u001fc')).toBe('abc');
   });
 
   it('去除首尾空白', () => {
