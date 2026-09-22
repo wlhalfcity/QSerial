@@ -71,6 +71,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const [copyOnSelect, setCopyOnSelect] = useState(config.terminal.copyOnSelect);
   const [rightClickPaste, setRightClickPaste] = useState(config.terminal.rightClickPaste);
   const [enableWebLinks, setEnableWebLinks] = useState(config.terminal.enableWebLinks);
+  const [autoLog, setAutoLog] = useState(config.terminal.autoLog);
+  const [autoLogDir, setAutoLogDir] = useState(config.terminal.autoLogDir);
 
   const [uiFontFamily, setUiFontFamily] = useState(config.app.uiFontFamily);
   const [language, setLanguage] = useState(config.app.language);
@@ -104,6 +106,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     setCopyOnSelect(c.terminal.copyOnSelect);
     setRightClickPaste(c.terminal.rightClickPaste);
     setEnableWebLinks(c.terminal.enableWebLinks);
+    setAutoLog(c.terminal.autoLog);
+    setAutoLogDir(c.terminal.autoLogDir);
     setUiFontFamily(c.app.uiFontFamily);
     setLanguage(c.app.language);
     setAutoUpdate(c.app.autoUpdate);
@@ -126,6 +130,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
       copyOnSelect,
       rightClickPaste,
       enableWebLinks,
+      autoLog,
+      autoLogDir,
     });
     updateConfig('app', {
       ...config.app,
@@ -451,6 +457,35 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               checked={enableWebLinks}
               onChange={setEnableWebLinks}
             />
+            <Toggle
+              label={t('dialogs.settings.autoLog')}
+              hint={t('dialogs.settings.autoLogHint')}
+              checked={autoLog}
+              onChange={setAutoLog}
+            />
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                {t('dialogs.settings.logDir')}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={autoLogDir}
+                  onChange={(e) => setAutoLogDir(e.target.value)}
+                  placeholder={t('dialogs.settings.logDirPlaceholder')}
+                  className="dialog-input flex-1 text-xs"
+                />
+                <button
+                  onClick={async () => {
+                    const dir = await window.qserial.dialog.pickDir(t('dialogs.settings.logDir'));
+                    if (dir) setAutoLogDir(dir);
+                  }}
+                  className="dialog-btn dialog-btn-secondary text-xs px-3 py-1.5 whitespace-nowrap"
+                >
+                  {t('dialogs.settings.browse')}
+                </button>
+              </div>
+            </div>
             <Select
               label={t('dialogs.settings.bell')}
               value={bellStyle}

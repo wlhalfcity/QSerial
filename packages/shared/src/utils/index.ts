@@ -15,3 +15,4 @@ export * from './assistant-knowledge.js';
 export * from './assistant-conversation.js';
 export * from './assistant-markdown.js';
 export * from './assistant-analysis.js';
+export * from './terminal-log.js';

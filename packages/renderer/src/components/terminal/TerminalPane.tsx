@@ -13,7 +13,7 @@ import { useTerminalMacroStore, PRESET_MACRO_COLORS } from '@/stores/terminalMac
 import { useQuickButtonsStore } from '@/stores/quickButtons';
 import { useConfigStore } from '@/stores/config';
 import { useAssistantStore } from '@/stores/assistant';
-import { base64ToUint8Array, ConnectionType, ConnectionState } from '@qserial/shared';
+import { base64ToUint8Array, buildLogFilePath, ConnectionType, ConnectionState } from '@qserial/shared';
 import 'xterm/css/xterm.css';
 
 import { ConnectionShareDialog } from '../dialogs/ConnectionShareDialog';
@@ -458,6 +458,27 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         }
       );
       unsubscribersRef.current.push(unsubscribeData);
+
+      // 自动记录日志：配置开启且已选择日志文件夹时，按 终端名_打开时间 新建日志文件
+      try {
+        const { autoLog, autoLogDir } = useConfigStore.getState().config.terminal;
+        const autoSession = useTerminalStore.getState().sessions[sessionId];
+        if (autoLog && autoLogDir && autoSession && !autoSession.logEnabled) {
+          const tabId = useTerminalStore.getState().findTabBySession(sessionId);
+          const tab = useTerminalStore.getState().tabs.find((tb) => tb.id === tabId);
+          const filePath = buildLogFilePath(
+            autoLogDir,
+            tab?.name || autoSession.name,
+            autoSession.createdAt
+          );
+          window.qserial.log
+            .start(sessionId, filePath)
+            .then(() => startLog(sessionId, filePath))
+            .catch((err) => console.error('Auto log start failed:', err));
+        }
+      } catch (err) {
+        console.error('Auto log setup failed:', err);
+      }
 
       // 监听连接状态
       const unsubscribeState = window.qserial.connection.onStateChange(

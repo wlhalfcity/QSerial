@@ -108,6 +108,12 @@ export const useTerminalStore = create<TerminalState>()(
         tab.sessions.forEach((sessionId) => {
           const session = state.sessions[sessionId];
           if (session) {
+            // 结束日志记录
+            if (session.logEnabled) {
+              window.qserial.log.stop(sessionId).catch((err) => {
+                console.error('Failed to stop log:', err);
+              });
+            }
             // 异步关闭连接
             window.qserial.connection.destroy(session.connectionId).catch((err) => {
               console.error('Failed to destroy connection:', err);
@@ -191,6 +197,12 @@ export const useTerminalStore = create<TerminalState>()(
       set((state) => {
         const session = state.sessions[sessionId];
         if (session) {
+          // 结束日志记录
+          if (session.logEnabled) {
+            window.qserial.log.stop(sessionId).catch((err) => {
+              console.error('Failed to stop log:', err);
+            });
+          }
           // 异步关闭连接
           window.qserial.connection.destroy(session.connectionId).catch((err) => {
             console.error('Failed to destroy connection:', err);
@@ -294,6 +306,12 @@ export const useTerminalStore = create<TerminalState>()(
           allSessionIds: Object.keys(state.sessions).map((s) => s.slice(0, 8)),
         });
         if (session) {
+          // 结束日志记录
+          if (session.logEnabled) {
+            window.qserial.log.stop(sessionId).catch((err) => {
+              console.error('Failed to stop log:', err);
+            });
+          }
           // 异步关闭连接
           window.qserial.connection.destroy(session.connectionId).catch((err) => {
             console.error('Failed to destroy connection:', err);

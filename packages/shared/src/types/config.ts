@@ -43,6 +43,10 @@ export interface TerminalSettings {
   autoReconnect: boolean;
   reconnectInterval: number;
   reconnectAttempts: number;
+  /** 自动记录终端日志（每次打开终端在 autoLogDir 下新建日志文件） */
+  autoLog: boolean;
+  /** 终端日志文件夹 */
+  autoLogDir: string;
 }
 
 /**
@@ -130,6 +134,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     autoReconnect: true,
     reconnectInterval: 3000,
     reconnectAttempts: 5,
+    autoLog: true,
+    autoLogDir: '',
   },
 
   serial: {
