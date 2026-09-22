@@ -80,6 +80,25 @@ export interface PluginIpcEvent {
   payload: unknown;
 }
 
+/** 用户经终端发出的数据事件（击键/粘贴/快捷按钮/宏，不含插件与 MCP 直写）。 */
+export interface UserInputEvent {
+  connectionId: string;
+  data: string;
+}
+
+/** 输入建议提供者上下文：查询建议时的连接与当前输入行。 */
+export interface SuggestionContext {
+  connectionId: string;
+  connectionType: string;
+  connectionName: string;
+  currentLine: string;
+}
+
+/** 输入建议提供者：返回建议条目列表，由宿主聚合后发给渲染进程。 */
+export type SuggestionProvider = (
+  ctx: SuggestionContext
+) => Promise<Array<{ text: string; source: string }>>;
+
 // ==================== 注册表状态 ====================
 
 const deviceProfiles = new Map<string, DeviceProfile[]>();
@@ -89,6 +108,8 @@ const outputFilters = new Map<string, OutputFilter[]>();
 const terminalCommands = new Map<string, Map<string, (args: unknown[]) => void | Promise<void>>>();
 const uiEntries = new Map<string, UiContribution[]>();
 const ipcHandlers = new Map<string, Map<string, PluginIpcHandler>>();
+const userInputListeners = new Map<string, Set<(event: UserInputEvent) => void>>();
+const suggestionProviders = new Map<string, SuggestionProvider>();
 let ipcEventSink: ((event: PluginIpcEvent) => void) | null = null;
 
 // ==================== 设备识别 ====================
@@ -254,6 +275,59 @@ export function emitPluginEvent(event: PluginIpcEvent): void {
   if (ipcEventSink) ipcEventSink(event);
 }
 
+// ==================== 终端用户输入监听 ====================
+
+/** 订阅用户终端输入。返回取消订阅函数。 */
+export function addUserInputListener(
+  pluginId: string,
+  callback: (event: UserInputEvent) => void
+): () => void {
+  let listeners = userInputListeners.get(pluginId);
+  if (!listeners) {
+    listeners = new Set();
+    userInputListeners.set(pluginId, listeners);
+  }
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+export function removeUserInputListeners(pluginId: string): void {
+  userInputListeners.delete(pluginId);
+}
+
+/** 广播用户输入事件给所有插件（单个插件异常不影响其他插件与主流程）。 */
+export function notifyUserInput(connectionId: string, data: string): void {
+  const event: UserInputEvent = { connectionId, data };
+  for (const listeners of userInputListeners.values()) {
+    for (const cb of listeners) {
+      try {
+        cb(event);
+      } catch {
+        /* 插件异常隔离 */
+      }
+    }
+  }
+}
+
+// ==================== 终端输入建议提供者 ====================
+
+export function addSuggestionProvider(pluginId: string, provider: SuggestionProvider): void {
+  suggestionProviders.set(pluginId, provider);
+}
+
+export function removeSuggestionProviders(pluginId: string): void {
+  suggestionProviders.delete(pluginId);
+}
+
+export function getSuggestionProviders(): Array<{
+  pluginId: string;
+  provider: SuggestionProvider;
+}> {
+  return [...suggestionProviders.entries()].map(([pluginId, provider]) => ({ pluginId, provider }));
+}
+
 /** 停用插件时回收其全部贡献 */
 export function removeAllContributions(pluginId: string): void {
   removeDeviceProfiles(pluginId);
@@ -263,4 +337,6 @@ export function removeAllContributions(pluginId: string): void {
   removeTerminalCommands(pluginId);
   removeUiEntries(pluginId);
   removeIpcHandlers(pluginId);
+  removeUserInputListeners(pluginId);
+  removeSuggestionProviders(pluginId);
 }

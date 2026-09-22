@@ -10,6 +10,8 @@ import type {
   QuickButtonContribution,
   UiContribution,
   OutputFilter,
+  SuggestionProvider,
+  UserInputEvent,
 } from './registry.js';
 
 /**
@@ -45,11 +47,15 @@ export interface PluginActivationContext {
     onStateChange(id: string, callback: (state: string) => void): () => void;
   };
 
-  /** 终端域 API（需 `terminal:write` 权限） */
+  /** 终端域 API（注册类需 `terminal:write` 权限，观察用户输入需 `terminal:observe` 权限） */
   terminal: {
     registerOutputFilter(filter: OutputFilter): void;
     registerQuickButtons(buttons: QuickButtonContribution[]): void;
     registerCommand(name: string, handler: (args: unknown[]) => void | Promise<void>): void;
+    /** 订阅用户经终端发出的数据（击键/粘贴/快捷按钮/宏），返回取消订阅函数 */
+    onUserInput(callback: (event: UserInputEvent) => void): () => void;
+    /** 注册输入建议提供者（渲染进程按 ↑ 时经宿主聚合查询） */
+    registerSuggestionProvider(provider: SuggestionProvider): void;
   };
 
   /** MCP 域 API（需 `mcp:register` 权限） */

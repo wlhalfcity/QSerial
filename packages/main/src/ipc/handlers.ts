@@ -5,7 +5,7 @@
 
 import { app, ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS, DEFAULT_MARKET_SOURCES, flattenConfig } from '@qserial/shared';
-import type { IConnection } from '@qserial/shared';
+import type { IConnection, TerminalSuggestion } from '@qserial/shared';
 import { ConnectionFactory } from '../services/connection/factory.js';
 import { ConfigManager } from '../config/manager.js';
 import { getLocalIp } from '../utils/network.js';
@@ -192,6 +192,40 @@ function setupConnectionHandlers(): void {
       throw new Error(`Connection ${id} not found`);
     }
     connection.write(data);
+    // 广播用户输入给插件系统（terminal:observe；插件/MCP 直写不经过此处）
+    import('../plugins/index.js').then((m) => m.notifyUserInput(id, data)).catch(() => {});
+  });
+
+  // 终端输入建议：聚合各插件注册的 SuggestionProvider（无 provider 时返回空数组）
+  ipcMain.handle(IPC_CHANNELS.TERMINAL_SUGGEST, async (_, { connectionId, currentLine }) => {
+    const plugins = await import('../plugins/index.js');
+    const connection = ConnectionFactory.get(connectionId);
+    const suggestionCtx = {
+      connectionId,
+      connectionType: String(connection?.type ?? ''),
+      connectionName: (connection?.options as { name?: string } | undefined)?.name || '',
+      currentLine,
+    };
+    const results = await Promise.all(
+      plugins.getSuggestionProviders().map(async ({ provider }) => {
+        try {
+          return await provider(suggestionCtx);
+        } catch {
+          return [] as Array<{ text: string; source: string }>;
+        }
+      })
+    );
+    const seen = new Set<string>();
+    const merged: TerminalSuggestion[] = [];
+    for (const list of results) {
+      for (const item of list) {
+        if (item && typeof item.text === 'string' && item.text && !seen.has(item.text)) {
+          seen.add(item.text);
+          merged.push({ text: item.text, source: String(item.source ?? '') });
+        }
+      }
+    }
+    return merged;
   });
 
   ipcMain.handle(IPC_CHANNELS.CONNECTION_RESIZE, async (_, { id, cols, rows }) => {

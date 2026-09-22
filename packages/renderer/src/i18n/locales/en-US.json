@@ -491,6 +491,7 @@
         "connection_read": "Read connection list, state and data",
         "connection_write": "Send data to a connection",
         "terminal_write": "Register output filters, quick buttons and terminal commands",
+        "terminal_observe": "Subscribe to data typed by the user in the terminal",
         "mcp_register": "Register custom MCP tools",
         "config": "Read/write its own namespaced config",
         "device_register": "Register device recognition profiles",

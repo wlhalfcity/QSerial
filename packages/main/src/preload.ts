@@ -18,6 +18,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.CONNECTION_WRITE, { id, data }),
     resize: (id: string, cols: number, rows: number) =>
       ipcRenderer.invoke(IPC_CHANNELS.CONNECTION_RESIZE, { id, cols, rows }),
+    suggest: (connectionId: string, currentLine: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_SUGGEST, { connectionId, currentLine }),
 
     getState: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.CONNECTION_GET_STATE, { id }),
 

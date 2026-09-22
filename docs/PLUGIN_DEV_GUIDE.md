@@ -79,7 +79,8 @@ export function deactivate() {
 |------|--------------|------|
 | `connection:read` | `ctx.connection.list/state/onData/onStateChange` | 读取连接列表、状态、订阅数据 |
 | `connection:write` | `ctx.connection.send` | 向指定连接发送数据 |
-| `terminal:write` | `ctx.terminal.*` | 注册输出过滤器 / 快捷按钮 / 终端命令 |
+| `terminal:write` | `ctx.terminal.register*` | 注册输出过滤器 / 快捷按钮 / 终端命令 / 输入建议提供者 |
+| `terminal:observe` | `ctx.terminal.onUserInput` | 订阅用户在终端输入的数据（击键 / 粘贴 / 快捷按钮 / 宏） |
 | `mcp:register` | `ctx.mcp.registerTool` | 注册自定义 MCP 工具 |
 | `config` | `ctx.config.*` | 读写插件自身命名空间配置（隔离存储） |
 | `device:register` | `ctx.device.registerProfiles` | 注册设备识别规则 |
@@ -102,10 +103,13 @@ ctx = {
     onData(id, cb): unsubscribe,
     onStateChange(id, cb): unsubscribe,
   },
-  terminal: {                        // 需 terminal:write
+  terminal: {                        // 注册类需 terminal:write，onUserInput 需 terminal:observe
     registerOutputFilter({id, filter}),
     registerQuickButtons(buttons),
     registerCommand(name, handler),
+    onUserInput(cb): unsubscribe,    // cb({connectionId, data})，data 为用户经终端发出的原始数据
+    registerSuggestionProvider(provider), // provider({connectionId, connectionType, connectionName, currentLine})
+                                         //   => Promise<Array<{text, source}>>，宿主聚合后供 ↑ 历史匹配
   },
   mcp: {                             // 需 mcp:register
     registerTool({name, description, inputSchema}, handler),

@@ -152,6 +152,14 @@ export function buildPluginContext(manifest: PluginManifest): PluginActivationCo
         assertPermission(perms, 'terminal:write');
         registry.addTerminalCommand(id, name, handler);
       },
+      onUserInput: (callback) => {
+        assertPermission(perms, 'terminal:observe');
+        return registry.addUserInputListener(id, callback);
+      },
+      registerSuggestionProvider: (provider) => {
+        assertPermission(perms, 'terminal:write');
+        registry.addSuggestionProvider(id, provider);
+      },
     },
 
     mcp: {

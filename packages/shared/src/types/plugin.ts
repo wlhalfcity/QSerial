@@ -12,6 +12,7 @@ export type PluginPermission =
   | 'connection:read'
   | 'connection:write'
   | 'terminal:write'
+  | 'terminal:observe'
   | 'mcp:register'
   | 'config'
   | 'device:register'

@@ -18,6 +18,7 @@ const PERMISSION_LABEL_KEYS: Record<PluginPermission, string> = {
   'connection:read': 'dialogs.pluginDetail.perms.connection_read',
   'connection:write': 'dialogs.pluginDetail.perms.connection_write',
   'terminal:write': 'dialogs.pluginDetail.perms.terminal_write',
+  'terminal:observe': 'dialogs.pluginDetail.perms.terminal_observe',
   'mcp:register': 'dialogs.pluginDetail.perms.mcp_register',
   config: 'dialogs.pluginDetail.perms.config',
   'device:register': 'dialogs.pluginDetail.perms.device_register',

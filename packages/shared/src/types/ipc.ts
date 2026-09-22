@@ -98,6 +98,9 @@ export const IPC_CHANNELS = {
   MCP_STATUS_EVENT: 'mcp:statusEvent',
   MCP_SHARE_CHANGED: 'mcp:shareChanged',
 
+  // 终端输入建议（宿主聚合各插件注册的 SuggestionProvider）
+  TERMINAL_SUGGEST: 'terminal:suggest',
+
   // SFTP 文件传输
   SFTP_CREATE: 'sftp:create',
   SFTP_DESTROY: 'sftp:destroy',
@@ -142,6 +145,16 @@ export const IPC_CHANNELS = {
 } as const;
 
 /**
+ * 终端输入建议条目（由插件 SuggestionProvider 提供）
+ */
+export interface TerminalSuggestion {
+  /** 建议替换的完整命令文本 */
+  text: string;
+  /** 来源标识（如插件 id 或 'history'） */
+  source: string;
+}
+
+/**
  * IPC 请求参数映射
  */
 export interface IpcRequestMap {
@@ -150,6 +163,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.CONNECTION_CLOSE]: { id: string };
   [IPC_CHANNELS.CONNECTION_DESTROY]: { id: string };
   [IPC_CHANNELS.CONNECTION_WRITE]: { id: string; data: string };
+  [IPC_CHANNELS.TERMINAL_SUGGEST]: { connectionId: string; currentLine: string };
   [IPC_CHANNELS.CONNECTION_RESIZE]: { id: string; cols: number; rows: number };
   [IPC_CHANNELS.CONNECTION_GET_STATE]: { id: string };
   [IPC_CHANNELS.SERIAL_LIST]: void;
@@ -313,6 +327,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.PLUGIN_CONFIG_GET]: Record<string, unknown>;
   [IPC_CHANNELS.PLUGIN_CONFIG_SET]: void;
   [IPC_CHANNELS.PLUGIN_INVOKE]: unknown;
+  [IPC_CHANNELS.TERMINAL_SUGGEST]: TerminalSuggestion[];
   [IPC_CHANNELS.PLUGIN_MARKET_FETCH]: MarketIndex;
   [IPC_CHANNELS.PLUGIN_MARKET_INSTALL]: PluginInfo[];
   [IPC_CHANNELS.PLUGIN_MARKET_UPDATE]: PluginInfo[];

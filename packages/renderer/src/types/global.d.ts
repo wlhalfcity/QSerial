@@ -29,6 +29,10 @@ interface QSerialAPI {
     destroy: (id: string) => Promise<void>;
     write: (id: string, data: string) => Promise<void>;
     resize: (id: string, cols: number, rows: number) => Promise<void>;
+    suggest: (
+      connectionId: string,
+      currentLine: string
+    ) => Promise<Array<{ text: string; source: string }>>;
     getState: (id: string) => Promise<{ state: string }>;
     onData: (id: string, callback: (data: string) => void) => () => void;
     onStateChange: (id: string, callback: (state: string) => void) => () => void;

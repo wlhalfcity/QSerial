@@ -491,6 +491,7 @@
         "connection_read": "读取连接列表、状态与数据",
         "connection_write": "向指定连接发送数据",
         "terminal_write": "注册输出过滤器、快捷按钮与终端命令",
+        "terminal_observe": "订阅用户在终端输入的数据",
         "mcp_register": "注册自定义 MCP 工具",
         "config": "读写自身命名空间配置",
         "device_register": "注册设备识别规则",

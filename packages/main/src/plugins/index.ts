@@ -17,4 +17,9 @@ export {
   getIpcHandler,
   setIpcEventSink,
   emitPluginEvent,
+  addUserInputListener,
+  notifyUserInput,
+  addSuggestionProvider,
+  getSuggestionProviders,
 } from './registry.js';
+export type { UserInputEvent, SuggestionProvider, SuggestionContext } from './registry.js';
