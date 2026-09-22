@@ -28,7 +28,13 @@ export const AssistantPanel: React.FC = () => {
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-primary">
-            <path d="M8 1v2M8 13v2M1 8h2M13 8h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+            <path
+              d="M8 1v2M8 13v2M1 8h2M13 8h2"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              opacity="0.6"
+            />
             <circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.2" />
             <circle cx="8" cy="8" r="1.4" fill="currentColor" opacity="0.4" />
           </svg>
@@ -55,7 +61,12 @@ export const AssistantPanel: React.FC = () => {
             title="关闭"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              <path
+                d="M2 2l6 6M8 2l-6 6"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>

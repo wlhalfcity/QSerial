@@ -150,9 +150,10 @@ export function exportModuleBundle(
 }
 
 /** 解析导入的 JSON 字符串，非法输入抛错。 */
-export function importModuleBundle(
-  json: string
-): { module: KnowledgeModuleMeta; docs: Array<{ meta: KnowledgeDocumentMeta; content: string }> } {
+export function importModuleBundle(json: string): {
+  module: KnowledgeModuleMeta;
+  docs: Array<{ meta: KnowledgeDocumentMeta; content: string }>;
+} {
   const parsed: unknown = JSON.parse(json);
   if (!parsed || typeof parsed !== 'object') throw new Error('导入文件不是有效的 JSON 对象');
   const obj = parsed as Record<string, unknown>;

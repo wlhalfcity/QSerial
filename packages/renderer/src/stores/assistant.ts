@@ -251,7 +251,13 @@ export const useAssistantStore = create<AssistantState>()((set, get) => ({
   newConversation: async () => {
     try {
       const conv = await invoke<{ id: string }>('conversations.create');
-      set({ activeConversationId: conv.id, messages: [], input: '', generateMode: false, commandResult: null });
+      set({
+        activeConversationId: conv.id,
+        messages: [],
+        input: '',
+        generateMode: false,
+        commandResult: null,
+      });
       await get().loadConversations();
     } catch (e) {
       set({ error: (e as Error).message });
@@ -260,7 +266,10 @@ export const useAssistantStore = create<AssistantState>()((set, get) => ({
 
   switchConversation: async (id) => {
     try {
-      const conv = await invoke<{ id: string; messages: ChatMessage[] } | null>('conversations.get', { id });
+      const conv = await invoke<{ id: string; messages: ChatMessage[] } | null>(
+        'conversations.get',
+        { id }
+      );
       set({
         activeConversationId: id,
         messages: conv?.messages || [],
@@ -565,8 +574,18 @@ export const useAssistantStore = create<AssistantState>()((set, get) => ({
     }
     const requestId = crypto.randomUUID();
     const history = get().messages.map((m) => ({ role: m.role, content: m.content }));
-    const userMsg: ChatMessage = { id: `${requestId}-u`, role: 'user', content: query, createdAt: Date.now() };
-    const assistantMsg: ChatMessage = { id: `${requestId}-a`, role: 'assistant', content: '', createdAt: Date.now() };
+    const userMsg: ChatMessage = {
+      id: `${requestId}-u`,
+      role: 'user',
+      content: query,
+      createdAt: Date.now(),
+    };
+    const assistantMsg: ChatMessage = {
+      id: `${requestId}-a`,
+      role: 'assistant',
+      content: '',
+      createdAt: Date.now(),
+    };
     set({
       messages: [...get().messages, userMsg, assistantMsg],
       input: '',
@@ -590,8 +609,18 @@ export const useAssistantStore = create<AssistantState>()((set, get) => ({
   analyzeText: async (text) => {
     set({ open: true, activeTab: 'chat' });
     const requestId = crypto.randomUUID();
-    const userMsg: ChatMessage = { id: `${requestId}-u`, role: 'user', content: `分析日志：\n${text.slice(0, 6000)}`, createdAt: Date.now() };
-    const assistantMsg: ChatMessage = { id: `${requestId}-a`, role: 'assistant', content: '', createdAt: Date.now() };
+    const userMsg: ChatMessage = {
+      id: `${requestId}-u`,
+      role: 'user',
+      content: `分析日志：\n${text.slice(0, 6000)}`,
+      createdAt: Date.now(),
+    };
+    const assistantMsg: ChatMessage = {
+      id: `${requestId}-a`,
+      role: 'assistant',
+      content: '',
+      createdAt: Date.now(),
+    };
     set({
       messages: [...get().messages, userMsg, assistantMsg],
       streaming: true,
@@ -762,7 +791,13 @@ export function initAssistantBridge(): void {
     const store = useAssistantStore.getState();
     if (event === 'chat.delta') store.onChatDelta(payload as { delta?: string });
     else if (event === 'chat.done')
-      store.onChatDone(payload as { content?: string; references?: ChatReference[]; conversation?: ConversationMeta });
+      store.onChatDone(
+        payload as {
+          content?: string;
+          references?: ChatReference[];
+          conversation?: ConversationMeta;
+        }
+      );
     else if (event === 'chat.error') store.onChatError(payload as { message?: string });
     else if (event === 'index.progress')
       store.onIndexProgress(payload as { current?: number; total?: number; docTitle?: string });

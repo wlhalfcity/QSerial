@@ -222,7 +222,11 @@ export function getUiEntries(): UiContribution[] {
 // ==================== 插件 IPC 桥 ====================
 
 /** 注册插件 IPC 方法处理器。 */
-export function registerIpcHandler(pluginId: string, method: string, handler: PluginIpcHandler): void {
+export function registerIpcHandler(
+  pluginId: string,
+  method: string,
+  handler: PluginIpcHandler
+): void {
   let methods = ipcHandlers.get(pluginId);
   if (!methods) {
     methods = new Map();

@@ -69,14 +69,20 @@ export const ChatTab: React.FC = () => {
 
   const openReference = (ref: ChatReference) => {
     const modules = useAssistantStore.getState().modules;
-    const m = modules.find((x) => x.id === ref.moduleId) || modules.find((x) => x.name === ref.moduleName);
+    const m =
+      modules.find((x) => x.id === ref.moduleId) || modules.find((x) => x.name === ref.moduleName);
     if (m) {
       useAssistantStore.getState().setTab('knowledge');
-      useAssistantStore.getState().loadDocs(m.id).then(() => {
-        const docs = useAssistantStore.getState().docs;
-        const d = docs.find((x) => x.id === ref.documentId) || docs.find((x) => x.title === ref.documentTitle);
-        if (d) useAssistantStore.getState().loadDoc(m.id, d.id);
-      });
+      useAssistantStore
+        .getState()
+        .loadDocs(m.id)
+        .then(() => {
+          const docs = useAssistantStore.getState().docs;
+          const d =
+            docs.find((x) => x.id === ref.documentId) ||
+            docs.find((x) => x.title === ref.documentTitle);
+          if (d) useAssistantStore.getState().loadDoc(m.id, d.id);
+        });
     }
   };
 
@@ -90,7 +96,12 @@ export const ChatTab: React.FC = () => {
           title={sidebarCollapsed ? '展开会话列表' : '收起会话列表'}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M4 2v8M9 2v8M4 2H2v8h2M9 2h1v8H9" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+            <path
+              d="M4 2v8M9 2v8M4 2H2v8h2M9 2h1v8H9"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
         <button
@@ -153,7 +164,10 @@ export const ChatTab: React.FC = () => {
                 正在生成…
               </>
             )}
-            <button onClick={stopGeneration} className="ml-2 px-2 py-0.5 text-[11px] rounded border border-border hover:bg-hover">
+            <button
+              onClick={stopGeneration}
+              className="ml-2 px-2 py-0.5 text-[11px] rounded border border-border hover:bg-hover"
+            >
               停止
             </button>
           </div>
@@ -178,7 +192,10 @@ export const ChatTab: React.FC = () => {
         {generateMode && (
           <div className="flex items-center justify-between text-[11px] text-accent px-0.5">
             <span>✨ 用自然语言描述你想要的命令</span>
-            <button onClick={() => setGenerateMode(false)} className="text-text-secondary hover:text-text">
+            <button
+              onClick={() => setGenerateMode(false)}
+              className="text-text-secondary hover:text-text"
+            >
               取消
             </button>
           </div>
@@ -187,7 +204,9 @@ export const ChatTab: React.FC = () => {
           <button
             onClick={() => setGenerateMode(!generateMode)}
             className={`w-7 h-7 flex items-center justify-center rounded border transition-colors ${
-              generateMode ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-secondary hover:bg-hover'
+              generateMode
+                ? 'border-accent text-accent bg-accent/10'
+                : 'border-border text-text-secondary hover:bg-hover'
             }`}
             title="AI 生成命令"
           >
@@ -199,7 +218,11 @@ export const ChatTab: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             rows={2}
-            placeholder={generateMode ? '例如：读取从站 1 的保持寄存器 0x0000' : '输入问题，Enter 发送，Shift+Enter 换行'}
+            placeholder={
+              generateMode
+                ? '例如：读取从站 1 的保持寄存器 0x0000'
+                : '输入问题，Enter 发送，Shift+Enter 换行'
+            }
             className="flex-1 resize-none text-xs bg-background border border-border rounded-lg px-2.5 py-2 outline-none focus:border-primary max-h-32"
           />
           <button
@@ -212,11 +235,7 @@ export const ChatTab: React.FC = () => {
         </div>
       </div>
 
-      {showPromptManager && (
-        <PromptManager
-          onClose={() => setShowPromptManager(false)}
-        />
-      )}
+      {showPromptManager && <PromptManager onClose={() => setShowPromptManager(false)} />}
     </div>
   );
 };
@@ -242,7 +261,12 @@ function MessageBubble({
               <circle cx="6" cy="6" r="1.6" fill="currentColor" opacity="0.5" />
             </svg>
             助手
-            <span className="ml-auto">{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="ml-auto">
+              {new Date(message.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
           </div>
         )}
 
@@ -259,7 +283,8 @@ function MessageBubble({
               rawLog={message.metadata?.logText}
               onReanalyze={
                 message.metadata?.logText
-                  ? () => useAssistantStore.getState().analyzeText(message.metadata?.logText as string)
+                  ? () =>
+                      useAssistantStore.getState().analyzeText(message.metadata?.logText as string)
                   : undefined
               }
             />
@@ -275,8 +300,14 @@ function MessageBubble({
             {message.references.map((r, i) => (
               <div key={i} className="flex items-center gap-1.5 text-[10px] text-text-secondary">
                 <span className="text-primary font-mono flex-shrink-0">[{i + 1}]</span>
-                <span className="truncate">{r.moduleName} / {r.documentTitle}{r.heading ? ` / ${r.heading}` : ''}</span>
-                <button onClick={() => onOpenReference(r)} className="ml-auto text-primary hover:underline flex-shrink-0">
+                <span className="truncate">
+                  {r.moduleName} / {r.documentTitle}
+                  {r.heading ? ` / ${r.heading}` : ''}
+                </span>
+                <button
+                  onClick={() => onOpenReference(r)}
+                  className="ml-auto text-primary hover:underline flex-shrink-0"
+                >
                   查看
                 </button>
               </div>
@@ -308,7 +339,10 @@ function PromptManager({ onClose }: { onClose: () => void }) {
     setDraft((d) => d.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   };
   const add = () =>
-    setDraft((d) => [...d, { id: `q-${Date.now()}`, label: '新指令', prompt: '', category: 'query' }]);
+    setDraft((d) => [
+      ...d,
+      { id: `q-${Date.now()}`, label: '新指令', prompt: '', category: 'query' },
+    ]);
   const remove = (i: number) => setDraft((d) => d.filter((_, idx) => idx !== i));
   const move = (i: number, dir: -1 | 1) =>
     setDraft((d) => {
@@ -320,11 +354,19 @@ function PromptManager({ onClose }: { onClose: () => void }) {
     });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-surface border border-border rounded-lg w-[480px] max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface border border-border rounded-lg w-[480px] max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
           <span className="text-sm font-medium">快捷指令管理</span>
-          <button onClick={onClose} className="text-text-secondary hover:text-text">✕</button>
+          <button onClick={onClose} className="text-text-secondary hover:text-text">
+            ✕
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {draft.map((p, i) => (
@@ -338,16 +380,33 @@ function PromptManager({ onClose }: { onClose: () => void }) {
                 />
                 <select
                   value={p.category || 'query'}
-                  onChange={(e) => update(i, { category: e.target.value as QuickPrompt['category'] })}
+                  onChange={(e) =>
+                    update(i, { category: e.target.value as QuickPrompt['category'] })
+                  }
                   className="text-xs bg-background border border-border rounded px-1 py-1"
                 >
                   <option value="analysis">分析</option>
                   <option value="query">查询</option>
                   <option value="generate">生成</option>
                 </select>
-                <button onClick={() => move(i, -1)} className="w-6 h-6 text-xs rounded border border-border hover:bg-hover">↑</button>
-                <button onClick={() => move(i, 1)} className="w-6 h-6 text-xs rounded border border-border hover:bg-hover">↓</button>
-                <button onClick={() => remove(i)} className="w-6 h-6 text-xs rounded border border-border text-error hover:bg-error/10">✕</button>
+                <button
+                  onClick={() => move(i, -1)}
+                  className="w-6 h-6 text-xs rounded border border-border hover:bg-hover"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => move(i, 1)}
+                  className="w-6 h-6 text-xs rounded border border-border hover:bg-hover"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => remove(i)}
+                  className="w-6 h-6 text-xs rounded border border-border text-error hover:bg-error/10"
+                >
+                  ✕
+                </button>
               </div>
               <textarea
                 value={p.prompt}
@@ -360,12 +419,22 @@ function PromptManager({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div className="px-3 py-2.5 border-t border-border flex items-center gap-2">
-          <button onClick={add} className="px-2 py-1 text-xs rounded border border-border hover:bg-hover">添加</button>
-          <button onClick={() => resetQuickPrompts().then(() => onClose())} className="px-2 py-1 text-xs rounded border border-border hover:bg-hover">
+          <button
+            onClick={add}
+            className="px-2 py-1 text-xs rounded border border-border hover:bg-hover"
+          >
+            添加
+          </button>
+          <button
+            onClick={() => resetQuickPrompts().then(() => onClose())}
+            className="px-2 py-1 text-xs rounded border border-border hover:bg-hover"
+          >
             重置默认
           </button>
           <button
-            onClick={() => saveQuickPrompts(draft.filter((p) => p.label && p.prompt)).then(() => onClose())}
+            onClick={() =>
+              saveQuickPrompts(draft.filter((p) => p.label && p.prompt)).then(() => onClose())
+            }
             className="ml-auto px-3 py-1 text-xs rounded bg-primary text-white hover:brightness-110"
           >
             保存

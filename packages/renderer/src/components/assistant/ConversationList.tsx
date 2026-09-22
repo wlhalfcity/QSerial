@@ -70,10 +70,14 @@ export const ConversationList: React.FC = () => {
               }`}
             >
               <div className="flex items-center justify-between gap-1">
-                <span className={`text-xs truncate ${c.id === activeConversationId ? 'text-primary' : ''}`}>
+                <span
+                  className={`text-xs truncate ${c.id === activeConversationId ? 'text-primary' : ''}`}
+                >
                   {c.title}
                 </span>
-                <span className="text-[9px] text-text-tertiary flex-shrink-0">{formatTime(c.updatedAt)}</span>
+                <span className="text-[9px] text-text-tertiary flex-shrink-0">
+                  {formatTime(c.updatedAt)}
+                </span>
               </div>
               <div className="text-[10px] text-text-secondary truncate mt-0.5">
                 {c.lastPreview || '（空对话）'}
@@ -101,7 +105,10 @@ export const ConversationList: React.FC = () => {
             className="fixed z-50 bg-surface border border-border rounded shadow-lg py-1 min-w-[120px]"
             style={{ left: menu.x, top: menu.y }}
           >
-            <button onClick={() => handleRename(menu.conv)} className="w-full px-3 py-1.5 text-xs text-left hover:bg-hover">
+            <button
+              onClick={() => handleRename(menu.conv)}
+              className="w-full px-3 py-1.5 text-xs text-left hover:bg-hover"
+            >
               重命名
             </button>
             <button

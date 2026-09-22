@@ -38,7 +38,14 @@ describe('buildPrompt', () => {
   it('包含参考资料与问题', () => {
     const { system, user } = buildPrompt({
       query: 'CRC 怎么算',
-      chunks: [{ moduleName: 'Modbus', documentTitle: '帧格式', heading: 'CRC', snippet: 'CRC16 低字节在前' }],
+      chunks: [
+        {
+          moduleName: 'Modbus',
+          documentTitle: '帧格式',
+          heading: 'CRC',
+          snippet: 'CRC16 低字节在前',
+        },
+      ],
     });
     expect(system).toBe(ASSISTANT_SYSTEM_PROMPT);
     expect(user).toContain('CRC16 低字节在前');

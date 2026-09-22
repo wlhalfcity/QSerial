@@ -147,7 +147,10 @@ export const KnowledgeBaseTab: React.FC = () => {
               <span className="text-[10px] text-text-secondary whitespace-nowrap truncate max-w-[140px]">
                 {indexProgress.current}/{indexProgress.total} {indexProgress.docTitle}
               </span>
-              <button onClick={cancelRebuild} className="text-[10px] text-error hover:underline whitespace-nowrap">
+              <button
+                onClick={cancelRebuild}
+                className="text-[10px] text-error hover:underline whitespace-nowrap"
+              >
                 取消
               </button>
             </>
@@ -159,8 +162,22 @@ export const KnowledgeBaseTab: React.FC = () => {
       <div className="flex-1 min-h-0 flex">
         {/* 左：模块列表 */}
         <div className="w-32 flex-shrink-0 border-r border-border overflow-y-auto">
-          <ModuleGroup title="内置" modules={builtinModules} currentId={currentModuleId} onSelect={loadDocs} onToggle={setModuleEnabled} onDelete={deleteModule} />
-          <ModuleGroup title="自定义" modules={customModules} currentId={currentModuleId} onSelect={loadDocs} onToggle={setModuleEnabled} onDelete={deleteModule} />
+          <ModuleGroup
+            title="内置"
+            modules={builtinModules}
+            currentId={currentModuleId}
+            onSelect={loadDocs}
+            onToggle={setModuleEnabled}
+            onDelete={deleteModule}
+          />
+          <ModuleGroup
+            title="自定义"
+            modules={customModules}
+            currentId={currentModuleId}
+            onSelect={loadDocs}
+            onToggle={setModuleEnabled}
+            onDelete={deleteModule}
+          />
         </div>
 
         {/* 中：文档列表 */}
@@ -185,7 +202,9 @@ export const KnowledgeBaseTab: React.FC = () => {
           </div>
           <div className="flex-1 overflow-y-auto">
             {docs.length === 0 ? (
-              <div className="text-[11px] text-text-tertiary text-center py-4 opacity-70">暂无文档</div>
+              <div className="text-[11px] text-text-tertiary text-center py-4 opacity-70">
+                暂无文档
+              </div>
             ) : (
               docs.map((d) => {
                 const indexed = indexedMap.get(d.id) ?? true;
@@ -265,19 +284,36 @@ export const KnowledgeBaseTab: React.FC = () => {
         </div>
       </div>
 
-      {error && <div className="px-3 py-1.5 text-[11px] text-error border-t border-error/20">{error}</div>}
+      {error && (
+        <div className="px-3 py-1.5 text-[11px] text-error border-t border-error/20">{error}</div>
+      )}
 
       {/* 重建索引确认 */}
       {confirmRebuild && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmRebuild(false)}>
-          <div className="bg-surface border border-border rounded-lg w-72 p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setConfirmRebuild(false)}
+        >
+          <div
+            className="bg-surface border border-border rounded-lg w-72 p-4 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-sm font-medium">重建索引</h3>
-            <p className="text-xs text-text-secondary">将重新分块与向量化当前模块（{currentModuleId ? '当前模块' : '全部模块'}）的文档，可能耗时，是否继续？</p>
+            <p className="text-xs text-text-secondary">
+              将重新分块与向量化当前模块（{currentModuleId ? '当前模块' : '全部模块'}
+              ）的文档，可能耗时，是否继续？
+            </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmRebuild(false)} className="px-2.5 py-1 text-xs rounded border border-border hover:bg-hover">
+              <button
+                onClick={() => setConfirmRebuild(false)}
+                className="px-2.5 py-1 text-xs rounded border border-border hover:bg-hover"
+              >
                 取消
               </button>
-              <button onClick={doRebuild} className="px-2.5 py-1 text-xs rounded bg-primary text-white hover:brightness-110">
+              <button
+                onClick={doRebuild}
+                className="px-2.5 py-1 text-xs rounded bg-primary text-white hover:brightness-110"
+              >
                 确认重建
               </button>
             </div>
@@ -287,8 +323,14 @@ export const KnowledgeBaseTab: React.FC = () => {
 
       {/* 新建模块弹窗 */}
       {showNewModule && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowNewModule(false)}>
-          <div className="bg-surface border border-border rounded-lg w-72 p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setShowNewModule(false)}
+        >
+          <div
+            className="bg-surface border border-border rounded-lg w-72 p-4 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-sm font-medium">新建知识模块</h3>
             <input
               value={newModuleName}
@@ -303,7 +345,10 @@ export const KnowledgeBaseTab: React.FC = () => {
               className="w-full text-xs bg-background border border-border rounded px-2 py-1.5 outline-none focus:border-primary"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewModule(false)} className="px-2.5 py-1 text-xs rounded border border-border hover:bg-hover">
+              <button
+                onClick={() => setShowNewModule(false)}
+                className="px-2.5 py-1 text-xs rounded border border-border hover:bg-hover"
+              >
                 取消
               </button>
               <button
@@ -353,7 +398,9 @@ function ModuleGroup({
           title={m.description}
         >
           <div className="flex items-center justify-between gap-1">
-            <span className={`text-[11px] truncate ${currentId === m.id ? 'text-primary' : ''}`}>{m.name}</span>
+            <span className={`text-[11px] truncate ${currentId === m.id ? 'text-primary' : ''}`}>
+              {m.name}
+            </span>
             <button
               onClick={(e) => {
                 e.stopPropagation();

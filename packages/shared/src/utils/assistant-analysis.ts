@@ -134,7 +134,9 @@ export function buildCommandPrompt(
     : '';
   return {
     system: COMMAND_SYSTEM_PROMPT,
-    user: [ctxText ? `【当前设备】\n${ctxText}` : '', `【需求】${description}`].filter(Boolean).join('\n'),
+    user: [ctxText ? `【当前设备】\n${ctxText}` : '', `【需求】${description}`]
+      .filter(Boolean)
+      .join('\n'),
   };
 }
 
@@ -152,10 +154,40 @@ export function parseCommandResult(text: string): CommandResult | null {
 
 /** 默认快捷指令（6 个）。 */
 export const DEFAULT_QUICK_PROMPTS: QuickPrompt[] = [
-  { id: 'analysis-log', label: '分析这段日志', prompt: '请分析这段串口日志，识别协议类型、关键字段和可能的异常：', category: 'analysis' },
-  { id: 'troubleshoot-garbled', label: '排查串口乱码', prompt: '串口通信出现乱码，可能的原因和排查步骤是什么？', category: 'analysis' },
-  { id: 'troubleshoot-noresponse', label: '排查无响应', prompt: '串口发送命令后设备无响应，如何排查？', category: 'analysis' },
-  { id: 'query-crc', label: 'CRC 怎么算', prompt: 'Modbus RTU 的 CRC16 校验如何计算？', category: 'query' },
-  { id: 'gen-modbus', label: '生成 Modbus 命令', prompt: '帮我生成一条 Modbus RTU 命令，用于：', category: 'generate' },
-  { id: 'gen-at', label: '生成 AT 指令', prompt: '帮我生成一组 AT 指令，用于：', category: 'generate' },
+  {
+    id: 'analysis-log',
+    label: '分析这段日志',
+    prompt: '请分析这段串口日志，识别协议类型、关键字段和可能的异常：',
+    category: 'analysis',
+  },
+  {
+    id: 'troubleshoot-garbled',
+    label: '排查串口乱码',
+    prompt: '串口通信出现乱码，可能的原因和排查步骤是什么？',
+    category: 'analysis',
+  },
+  {
+    id: 'troubleshoot-noresponse',
+    label: '排查无响应',
+    prompt: '串口发送命令后设备无响应，如何排查？',
+    category: 'analysis',
+  },
+  {
+    id: 'query-crc',
+    label: 'CRC 怎么算',
+    prompt: 'Modbus RTU 的 CRC16 校验如何计算？',
+    category: 'query',
+  },
+  {
+    id: 'gen-modbus',
+    label: '生成 Modbus 命令',
+    prompt: '帮我生成一条 Modbus RTU 命令，用于：',
+    category: 'generate',
+  },
+  {
+    id: 'gen-at',
+    label: '生成 AT 指令',
+    prompt: '帮我生成一组 AT 指令，用于：',
+    category: 'generate',
+  },
 ];

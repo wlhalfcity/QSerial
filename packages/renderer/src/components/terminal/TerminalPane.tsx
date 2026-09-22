@@ -13,7 +13,12 @@ import { useTerminalMacroStore, PRESET_MACRO_COLORS } from '@/stores/terminalMac
 import { useQuickButtonsStore } from '@/stores/quickButtons';
 import { useConfigStore } from '@/stores/config';
 import { useAssistantStore } from '@/stores/assistant';
-import { base64ToUint8Array, buildLogFilePath, ConnectionType, ConnectionState } from '@qserial/shared';
+import {
+  base64ToUint8Array,
+  buildLogFilePath,
+  ConnectionType,
+  ConnectionState,
+} from '@qserial/shared';
 import 'xterm/css/xterm.css';
 
 import { ConnectionShareDialog } from '../dialogs/ConnectionShareDialog';
@@ -1376,7 +1381,13 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
                 }}
                 className="w-full px-3 py-1.5 text-sm text-left hover:bg-hover flex items-center gap-2"
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-primary">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  className="text-primary"
+                >
                   <circle cx="6" cy="6" r="3" stroke="currentColor" strokeWidth="1.1" />
                   <circle cx="6" cy="6" r="1" fill="currentColor" opacity="0.5" />
                 </svg>

@@ -106,7 +106,9 @@ describe('sortDocuments', () => {
 describe('export/import', () => {
   it('往返一致', () => {
     const module = createModuleMeta({ name: 'Modbus', id: 'modbus', type: 'builtin' });
-    const docs = [{ meta: createDocumentMeta('modbus', { title: 't', content: '内容' }), content: '内容' }];
+    const docs = [
+      { meta: createDocumentMeta('modbus', { title: 't', content: '内容' }), content: '内容' },
+    ];
     const json = exportModuleBundle(module, docs);
     const restored = importModuleBundle(json);
     expect(restored.module.id).toBe('modbus');

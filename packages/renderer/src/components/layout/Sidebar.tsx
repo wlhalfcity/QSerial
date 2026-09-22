@@ -1047,7 +1047,13 @@ export const Sidebar: React.FC = () => {
           >
             <span className="flex-shrink-0 text-primary opacity-70 group-hover:opacity-100 transition-opacity">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path d="M8 1v2M8 13v2M1 8h2M13 8h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+                <path
+                  d="M8 1v2M8 13v2M1 8h2M13 8h2"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                />
                 <circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.2" />
                 <circle cx="8" cy="8" r="1.4" fill="currentColor" opacity="0.4" />
               </svg>

@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  keywordSimilarity,
-  combineScores,
-  rankCandidates,
-  hashEmbedding,
-} from '@qserial/shared';
+import { keywordSimilarity, combineScores, rankCandidates, hashEmbedding } from '@qserial/shared';
 
 describe('keywordSimilarity', () => {
   it('完全匹配得分高于部分匹配', () => {
@@ -34,9 +29,15 @@ describe('rankCandidates', () => {
 
   it('按分数降序返回', () => {
     const candidates = [
-      { text: '串口通信出现乱码通常由波特率不一致导致', vector: hashEmbedding('串口通信出现乱码通常由波特率不一致导致') },
+      {
+        text: '串口通信出现乱码通常由波特率不一致导致',
+        vector: hashEmbedding('串口通信出现乱码通常由波特率不一致导致'),
+      },
       { text: 'Modbus 功能码 03 读寄存器', vector: hashEmbedding('Modbus 功能码 03 读寄存器') },
-      { text: '串口乱码排查步骤：检查波特率、数据位、校验位', vector: hashEmbedding('串口乱码排查步骤：检查波特率、数据位、校验位') },
+      {
+        text: '串口乱码排查步骤：检查波特率、数据位、校验位',
+        vector: hashEmbedding('串口乱码排查步骤：检查波特率、数据位、校验位'),
+      },
     ];
     const ranked = rankCandidates(query, qVec, candidates, { topK: 3 });
     expect(ranked).toHaveLength(3);

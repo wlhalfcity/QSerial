@@ -25,11 +25,7 @@ import {
 
 let tmpDir: string;
 
-function makePlugin(
-  dirName: string,
-  manifest: Record<string, unknown>,
-  entryCode: string
-): void {
+function makePlugin(dirName: string, manifest: Record<string, unknown>, entryCode: string): void {
   const pdir = path.join(tmpDir, dirName);
   fs.mkdirSync(pdir, { recursive: true });
   fs.writeFileSync(path.join(pdir, 'package.json'), JSON.stringify(manifest, null, 2));
@@ -47,11 +43,7 @@ function newManager(searchDir: string, initial?: Record<string, boolean>): Plugi
   });
 }
 
-function manifest(
-  id: string,
-  permissions: string[],
-  builtin: boolean
-): Record<string, unknown> {
+function manifest(id: string, permissions: string[], builtin: boolean): Record<string, unknown> {
   return {
     name: id,
     version: '1.0.0',

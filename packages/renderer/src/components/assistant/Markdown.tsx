@@ -59,7 +59,10 @@ function TableBlock({ header, rows }: { header: string[]; rows: string[][] }) {
         <thead>
           <tr>
             {header.map((h, i) => (
-              <th key={i} className="border border-border px-2 py-1 text-left font-medium bg-background/50">
+              <th
+                key={i}
+                className="border border-border px-2 py-1 text-left font-medium bg-background/50"
+              >
                 <Inline text={h} />
               </th>
             ))}
@@ -122,7 +125,10 @@ function renderBlock(block: MarkdownBlock, i: number): React.ReactNode {
       return <TableBlock key={i} header={block.header} rows={block.rows} />;
     case 'quote':
       return (
-        <blockquote key={i} className="border-l-2 border-border pl-2 my-1 text-xs text-text-secondary">
+        <blockquote
+          key={i}
+          className="border-l-2 border-border pl-2 my-1 text-xs text-text-secondary"
+        >
           <Inline text={block.text} />
         </blockquote>
       );

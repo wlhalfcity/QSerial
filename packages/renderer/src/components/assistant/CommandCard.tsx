@@ -25,7 +25,10 @@ export const CommandCard: React.FC<{
     const name = prompt('模板名称');
     if (!name || !command) return;
     try {
-      await window.qserial.plugin.invoke('qserial-plugin-assistant', 'templates.save', { name, command });
+      await window.qserial.plugin.invoke('qserial-plugin-assistant', 'templates.save', {
+        name,
+        command,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch {
@@ -75,10 +78,18 @@ export const CommandCard: React.FC<{
         >
           发送到串口
         </button>
-        <button onClick={copy} disabled={!command} className="px-2 py-1 text-[11px] rounded border border-border hover:bg-hover disabled:opacity-40">
+        <button
+          onClick={copy}
+          disabled={!command}
+          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-hover disabled:opacity-40"
+        >
           复制
         </button>
-        <button onClick={saveTemplate} disabled={!command} className="px-2 py-1 text-[11px] rounded border border-border hover:bg-hover disabled:opacity-40">
+        <button
+          onClick={saveTemplate}
+          disabled={!command}
+          className="px-2 py-1 text-[11px] rounded border border-border hover:bg-hover disabled:opacity-40"
+        >
           {saved ? '已保存' : '保存为模板'}
         </button>
       </div>

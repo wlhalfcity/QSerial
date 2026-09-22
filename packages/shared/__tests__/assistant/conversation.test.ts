@@ -60,8 +60,22 @@ describe('sortConversationsByUpdated', () => {
 
 describe('searchConversations', () => {
   const list = [
-    { id: 'a', title: 'Modbus 问题', createdAt: 1, updatedAt: 1, messageCount: 0, lastPreview: 'CRC 计算' },
-    { id: 'b', title: 'AT 指令', createdAt: 1, updatedAt: 1, messageCount: 0, lastPreview: '连接 WiFi' },
+    {
+      id: 'a',
+      title: 'Modbus 问题',
+      createdAt: 1,
+      updatedAt: 1,
+      messageCount: 0,
+      lastPreview: 'CRC 计算',
+    },
+    {
+      id: 'b',
+      title: 'AT 指令',
+      createdAt: 1,
+      updatedAt: 1,
+      messageCount: 0,
+      lastPreview: '连接 WiFi',
+    },
   ];
   it('按标题匹配', () => {
     expect(searchConversations(list, 'modbus').map((x) => x.id)).toEqual(['a']);
@@ -84,7 +98,9 @@ describe('pruneConversationIds', () => {
     expect(pruneConversationIds(list, 1)).toEqual(['old2', 'old1']);
   });
   it('未超限返回空', () => {
-    const list = [{ id: 'a', title: '', createdAt: 1, updatedAt: 1, messageCount: 0, lastPreview: '' }];
+    const list = [
+      { id: 'a', title: '', createdAt: 1, updatedAt: 1, messageCount: 0, lastPreview: '' },
+    ];
     expect(pruneConversationIds(list, 50)).toEqual([]);
   });
 });

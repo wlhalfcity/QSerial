@@ -251,10 +251,8 @@ const api = {
     invoke: (pluginId: string, method: string, args?: unknown) =>
       ipcRenderer.invoke(IPC_CHANNELS.PLUGIN_INVOKE, { pluginId, method, args }),
     onEvent: (callback: (event: { pluginId: string; event: string; payload: unknown }) => void) => {
-      const handler = (
-        _: unknown,
-        event: { pluginId: string; event: string; payload: unknown }
-      ) => callback(event);
+      const handler = (_: unknown, event: { pluginId: string; event: string; payload: unknown }) =>
+        callback(event);
       ipcRenderer.on(IPC_CHANNELS.PLUGIN_EVENT, handler);
       return () => ipcRenderer.off(IPC_CHANNELS.PLUGIN_EVENT, handler);
     },

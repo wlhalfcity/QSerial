@@ -103,7 +103,10 @@ export const AnalysisCard: React.FC<{
           <div className="text-[10px] text-text-tertiary mb-1">异常检测</div>
           <div className="space-y-1">
             {result.anomalies.map((a, i) => (
-              <div key={i} className={`px-2 py-1 rounded border ${SEVERITY_COLOR[a.severity] || SEVERITY_COLOR.medium}`}>
+              <div
+                key={i}
+                className={`px-2 py-1 rounded border ${SEVERITY_COLOR[a.severity] || SEVERITY_COLOR.medium}`}
+              >
                 <span className="font-medium">{a.type}</span>
                 <span className="ml-1.5">{a.description}</span>
               </div>
@@ -143,15 +146,24 @@ export const AnalysisCard: React.FC<{
 
       {/* 操作按钮 */}
       <div className="px-3 py-2 flex items-center gap-2">
-        <button onClick={copyResult} className="px-2 py-1 text-[10px] rounded border border-border hover:bg-hover">
+        <button
+          onClick={copyResult}
+          className="px-2 py-1 text-[10px] rounded border border-border hover:bg-hover"
+        >
           复制解析结果
         </button>
         {onReanalyze && (
-          <button onClick={onReanalyze} className="px-2 py-1 text-[10px] rounded border border-border hover:bg-hover">
+          <button
+            onClick={onReanalyze}
+            className="px-2 py-1 text-[10px] rounded border border-border hover:bg-hover"
+          >
             重新分析
           </button>
         )}
-        <button onClick={saveToKnowledge} className="px-2 py-1 text-[10px] rounded border border-border hover:bg-hover">
+        <button
+          onClick={saveToKnowledge}
+          className="px-2 py-1 text-[10px] rounded border border-border hover:bg-hover"
+        >
           {saved ? '已保存' : '保存到知识库'}
         </button>
       </div>

@@ -59,7 +59,9 @@ function isTableSeparator(line: string): boolean {
 
 /** 将 Markdown 文本解析为块序列。 */
 export function parseMarkdown(text: string): MarkdownBlock[] {
-  const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
+  const lines = String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n');
   const blocks: MarkdownBlock[] = [];
   let i = 0;
 
@@ -138,7 +140,12 @@ export function parseMarkdown(text: string): MarkdownBlock[] {
     if (line.trim() !== '') {
       const para: string[] = [line.trim()];
       i += 1;
-      while (i < lines.length && lines[i].trim() !== '' && !/^(#{1,6}\s|`{3,}|\s*[-*+]\s|\s*\d+[.)]\s|\s*>) /.test(lines[i]) && !(lines[i].includes('|') && i + 1 < lines.length && isTableSeparator(lines[i + 1]))) {
+      while (
+        i < lines.length &&
+        lines[i].trim() !== '' &&
+        !/^(#{1,6}\s|`{3,}|\s*[-*+]\s|\s*\d+[.)]\s|\s*>) /.test(lines[i]) &&
+        !(lines[i].includes('|') && i + 1 < lines.length && isTableSeparator(lines[i + 1]))
+      ) {
         para.push(lines[i].trim());
         i += 1;
       }

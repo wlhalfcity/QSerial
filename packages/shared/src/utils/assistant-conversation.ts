@@ -3,11 +3,7 @@
  * 文件持久化在插件 conversation.mjs 中完成。
  */
 
-import type {
-  ChatMessage,
-  Conversation,
-  ConversationMeta,
-} from '../types/assistant.js';
+import type { ChatMessage, Conversation, ConversationMeta } from '../types/assistant.js';
 
 /** 生成降级标题：「新对话 YYYY-MM-DD」。 */
 export function fallbackConversationTitle(now: number | Date = Date.now()): string {
@@ -34,9 +30,7 @@ export function createConversation(id?: string, now = Date.now()): Conversation 
 export function toConversationMeta(conversation: Conversation): ConversationMeta {
   const messages = conversation.messages || [];
   const last = messages[messages.length - 1];
-  const lastPreview = last
-    ? last.content.replace(/\s+/g, ' ').slice(0, 40)
-    : '';
+  const lastPreview = last ? last.content.replace(/\s+/g, ' ').slice(0, 40) : '';
   return {
     id: conversation.id,
     title: conversation.title || fallbackConversationTitle(conversation.createdAt),
@@ -57,10 +51,7 @@ export function sortConversationsByUpdated(
 }
 
 /** 按标题 / 内容关键词过滤（标题优先，其次预览）。 */
-export function searchConversations(
-  list: ConversationMeta[],
-  keyword: string
-): ConversationMeta[] {
+export function searchConversations(list: ConversationMeta[], keyword: string): ConversationMeta[] {
   const kw = keyword.trim().toLowerCase();
   if (!kw) return list;
   return list.filter(

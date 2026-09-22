@@ -38,7 +38,10 @@ export function parseHeadingLine(line: string): string | null {
  */
 export function chunkText(text: string, options: ChunkOptions = {}): ChunkDraft[] {
   const chunkSize = Math.max(50, options.chunkSize ?? DEFAULT_CHUNK_SIZE);
-  const overlap = Math.max(0, Math.min(options.overlap ?? DEFAULT_OVERLAP, Math.floor(chunkSize / 2)));
+  const overlap = Math.max(
+    0,
+    Math.min(options.overlap ?? DEFAULT_OVERLAP, Math.floor(chunkSize / 2))
+  );
   const normalized = text.replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n');
 

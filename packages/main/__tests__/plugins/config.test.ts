@@ -189,7 +189,14 @@ describe('loadManifest configSchema 解析', () => {
             permissions: ['config'],
             configSchema: {
               fields: [
-                { key: 'baud', label: '波特率', type: 'number', default: 115200, min: 300, max: 921600 },
+                {
+                  key: 'baud',
+                  label: '波特率',
+                  type: 'number',
+                  default: 115200,
+                  min: 300,
+                  max: 921600,
+                },
                 {
                   key: 'mode',
                   label: '模式',

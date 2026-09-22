@@ -41,7 +41,9 @@ describe('parseAnalysisResult', () => {
   });
 
   it('围栏包裹的 JSON 也能解析', () => {
-    const r = parseAnalysisResult('```json\n{"protocol":"AT","confidence":0.5,"keyFields":[],"anomalies":[],"suggestions":[]}\n```');
+    const r = parseAnalysisResult(
+      '```json\n{"protocol":"AT","confidence":0.5,"keyFields":[],"anomalies":[],"suggestions":[]}\n```'
+    );
     expect(r?.protocol).toBe('AT');
   });
 
@@ -51,7 +53,9 @@ describe('parseAnalysisResult', () => {
   });
 
   it('非法 severity 回退 medium', () => {
-    const r = parseAnalysisResult('{"protocol":"x","anomalies":[{"type":"t","description":"d","severity":"??"}]}');
+    const r = parseAnalysisResult(
+      '{"protocol":"x","anomalies":[{"type":"t","description":"d","severity":"??"}]}'
+    );
     expect(r?.anomalies[0].severity).toBe('medium');
   });
 });
