@@ -72,7 +72,6 @@ export const FtpClientPanel: React.FC = () => {
   const goUp = useFtpClientStore((s) => s.goUp);
   const refresh = useFtpClientStore((s) => s.refresh);
   const mkdir = useFtpClientStore((s) => s.mkdir);
-  const rm = useFtpClientStore((s) => s.rm);
   const downloadFile = useFtpClientStore((s) => s.downloadFile);
   const uploadPaths = useFtpClientStore((s) => s.uploadPaths);
   const updateProgress = useFtpClientStore((s) => s.updateProgress);
@@ -372,16 +371,6 @@ export const FtpClientPanel: React.FC = () => {
                     <span className="text-xs text-text-secondary w-28 text-right flex-shrink-0">
                       {formatTime(file.modifyTime)}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void rm(file);
-                      }}
-                      className="text-text-secondary hover:text-error text-xs px-1 flex-shrink-0"
-                      title={t('ftpClient.delete')}
-                    >
-                      ✕
-                    </button>
                   </div>
                 ))}
               </div>
