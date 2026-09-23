@@ -92,24 +92,44 @@ export async function activate(ctx) {
     }
   };
 
-  // ── 订阅用户输入，按 \r 切行入史 ──
-  ctx.terminal.onUserInput(({ connectionId, data }) => {
-    state.pending += data;
-    let idx;
-    while ((idx = state.pending.indexOf('\r')) !== -1) {
-      const line = state.pending.slice(0, idx).replace(/\n/g, '').trim();
-      state.pending = state.pending.slice(idx + 1);
-      if (line.length < state.config.minInputLength) continue;
-      const last = state.history[state.history.length - 1];
-      if (last && last.text === line) continue; // 相邻去重
-      state.history.push({ text: line, connectionType: typeOf(connectionId), at: Date.now() });
-    }
-    // 防止无换行的超长输入撑爆缓冲
-    if (state.pending.length > MAX_PENDING) state.pending = state.pending.slice(-1024);
+  // 回车结算当前行：有效则入史
+  const settleLine = (connectionId) => {
+    const line = state.pending.trim();
+    state.pending = '';
+    if (line.length < state.config.minInputLength) return;
+    const last = state.history[state.history.length - 1];
+    if (last && last.text === line) return; // 相邻去重
+    state.history.push({ text: line, connectionType: typeOf(connectionId), at: Date.now() });
     if (state.history.length > state.config.maxHistory) {
       state.history = state.history.slice(-state.config.maxHistory);
     }
     save();
+  };
+
+  // ── 订阅用户输入 ──
+  // 只记录可靠重建的命令：Tab（设备补全）与透传的 ↑/↓（历史导航）会重写设备端的
+  // 当前行，补全/调出的文本走设备回显流（插件不可见），故这类帧作废行缓冲不入史。
+  ctx.terminal.onUserInput(({ connectionId, data }) => {
+    if (data.includes('\x1b')) {
+      // 转义序列帧（↑/↓ 透传等）：当前行已被设备端重写，内容不可知
+      state.pending = '';
+      return;
+    }
+    for (const ch of data) {
+      const code = ch.charCodeAt(0);
+      if (ch === '\r') {
+        settleLine(connectionId);
+      } else if (code === 127 || code === 8) {
+        state.pending = state.pending.slice(0, -1); // 退格是良性行编辑
+      } else if (code < 32) {
+        // Tab（补全展开不可见）/Ctrl+C 等控制键：行内容与缓冲已不一致，作废
+        state.pending = '';
+      } else {
+        state.pending += ch;
+      }
+    }
+    // 防爆：无回车的超长输入（如巨型粘贴）直接作废
+    if (state.pending.length > MAX_PENDING) state.pending = '';
   });
 
   // ── 建议提供者：前缀优先、子串兜底、同连接类型优先 ──
