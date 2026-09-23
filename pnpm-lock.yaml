@@ -81,6 +81,9 @@ importers:
       '@qserial/shared':
         specifier: workspace:*
         version: link:../shared
+      basic-ftp:
+        specifier: ^5.0.5
+        version: 5.3.1
       extract-zip:
         specifier: ^2.0.1
         version: 2.0.1
@@ -2399,6 +2402,11 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
     dev: true
+
+  /basic-ftp@5.3.1:
+    resolution: {integrity: sha512-bopVNp6ugyA150DDuZfPFdt1KZ5a94ZDiwX4hMgZDzF+GttD80lEy8kj98kbyhLXnPvhtIo93mdnLIjpCAeeOw==}
+    engines: {node: '>=10.0.0'}
+    dev: false
 
   /bcrypt-pbkdf@1.0.2:
     resolution: {integrity: sha512-qeFIXtP4MSoi6NLqO12WfqARWWuCKi2Rn/9hJLEmtB5yTNr9DqFWkJRCf2qShWzPeAMRnOgCrq0sg/KLv5ES9w==}
