@@ -81,6 +81,12 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     } | null>(null);
     const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
     const mountCountRef = useRef(0);
+    // 本地输入行镜像（跟踪用户敲键而非屏幕回显），供 ↑/↓ 历史命令匹配
+    const lineBufferRef = useRef('');
+    // 历史匹配轮换状态：base 为发起匹配时的原始输入，-1 表示未轮换
+    const matchBaseRef = useRef('');
+    const matchIndexRef = useRef(-1);
+    const matchListRef = useRef<string[]>([]);
 
     // 使用 selector 精准订阅，避免其他 session 变更导致本组件重渲染
     const session = useTerminalStore((state) => state.sessions[sessionId]);
@@ -390,6 +396,70 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
       openXterm();
 
       // 添加复制粘贴和搜索支持
+      // 维护本地输入行镜像：剥离 CSI/SS3 转义序列后按字符处理
+      const applyToLineBuffer = (buf: string, data: string): string => {
+        let result = buf;
+        // 移除完整转义序列（方向键/Home/End/Del 等），避免污染镜像
+        // eslint-disable-next-line no-control-regex
+        const cleaned = data.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1bO[A-Za-z]|\x1b/g, '');
+        for (const ch of cleaned) {
+          const code = ch.charCodeAt(0);
+          if (ch === '\r' || ch === '\n') {
+            result = ''; // 回车：当前行结束
+          } else if (code === 127 || code === 8) {
+            result = result.slice(0, -1); // 退格
+          } else if (code >= 32) {
+            result += ch; // 可打印字符
+          }
+          // 其余控制字符跳过
+        }
+        return result;
+      };
+
+      // 用历史命令替换当前输入行：向设备发退格删行 + 重发命令（透传语义）
+      const replaceCurrentLine = (from: string, to: string) => {
+        if (from.length > 0) {
+          window.qserial.connection.write(connectionId, '\x7f'.repeat(from.length));
+        }
+        if (to) {
+          window.qserial.connection.write(connectionId, to);
+        }
+        lineBufferRef.current = to;
+      };
+
+      // ↑/↓ 历史命令匹配：有匹配返回 true（已接管），无匹配返回 false（调用方透传给设备）
+      const handleHistoryKey = async (direction: 1 | -1): Promise<boolean> => {
+        const line = lineBufferRef.current;
+        if (matchBaseRef.current !== line || matchListRef.current.length === 0) {
+          matchBaseRef.current = line;
+          matchIndexRef.current = -1;
+          try {
+            const res = await window.qserial.connection.suggest(connectionId, line);
+            matchListRef.current = (res ?? [])
+              .map((s) => s.text)
+              .filter((t) => typeof t === 'string' && t.length > 0);
+          } catch {
+            matchListRef.current = [];
+          }
+          // 排除与当前输入完全相同的建议
+          matchListRef.current = matchListRef.current.filter((t) => t !== line);
+        }
+        const next = matchIndexRef.current + direction;
+        // ↓ 回退到 -1：恢复原始输入
+        if (next === -1) {
+          matchIndexRef.current = -1;
+          replaceCurrentLine(line, matchBaseRef.current);
+          return true;
+        }
+        // 越界：↑ 到头保持不动，↓ 无法再回退则透传
+        if (next < 0 || next >= matchListRef.current.length) {
+          return false;
+        }
+        matchIndexRef.current = next;
+        replaceCurrentLine(line, matchListRef.current[next]);
+        return true;
+      };
+
       xterm.attachCustomKeyEventHandler((event) => {
         if (event.ctrlKey && event.key === 'f') {
           openSearch();
@@ -405,6 +475,25 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         }
         if (event.ctrlKey && event.key === 'v') {
           // 阻止默认行为，通过 onData 事件处理粘贴
+          return false;
+        }
+        // ↑/↓ 历史命令匹配：仅在插件返回建议时接管，否则透传给设备（保留远端 shell 历史）
+        if (
+          event.type === 'keydown' &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey &&
+          (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+        ) {
+          const direction = event.key === 'ArrowUp' ? 1 : -1;
+          void handleHistoryKey(direction).then((consumed) => {
+            if (!consumed) {
+              window.qserial.connection.write(
+                connectionId,
+                event.key === 'ArrowUp' ? '\x1b[A' : '\x1b[B'
+              );
+            }
+          });
           return false;
         }
         return true;
@@ -427,6 +516,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         if (data === compositionDataRef.current) {
           console.log('[TerminalPane] onData sending (composition end)');
           window.qserial.connection.write(connectionId, data);
+          lineBufferRef.current = applyToLineBuffer(lineBufferRef.current, data);
           console.log('[Macro] Record step:', JSON.stringify(data));
           addStep(data);
           compositionDataRef.current = ''; // 清空标记，防止重复
@@ -434,6 +524,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         }
         console.log('[TerminalPane] onData sending');
         window.qserial.connection.write(connectionId, data);
+        lineBufferRef.current = applyToLineBuffer(lineBufferRef.current, data);
         console.log('[Macro] Record step:', JSON.stringify(data));
         addStep(data);
       });
