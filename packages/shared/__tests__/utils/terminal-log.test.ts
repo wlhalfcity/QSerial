@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   sanitizeLogName,
   formatLogTimestamp,
+  formatLogLineStamp,
   buildLogFileName,
   buildLogFilePath,
   extractLogLines,
@@ -82,10 +83,10 @@ describe('buildLogFilePath', () => {
   });
 });
 
-describe('formatLogTimestamp', () => {
+describe('formatLogLineStamp', () => {
   it('输出 [HH:mm:ss.SSS] 本地时间，毫秒补零', () => {
-    expect(formatLogTimestamp(new Date(2026, 8, 22, 9, 5, 3, 7))).toBe('[09:05:03.007]');
-    expect(formatLogTimestamp(new Date(2026, 8, 22, 23, 59, 59, 999))).toBe('[23:59:59.999]');
+    expect(formatLogLineStamp(new Date(2026, 8, 23, 9, 5, 3, 7))).toBe('[09:05:03.007]');
+    expect(formatLogLineStamp(new Date(2026, 8, 22, 23, 59, 59, 999))).toBe('[23:59:59.999]');
   });
 });
 

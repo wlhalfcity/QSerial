@@ -51,8 +51,9 @@ export function buildLogFilePath(dir: string, name: string, openedAt: Date): str
 
 /**
  * 格式化日志行时间戳（本地时间）：[HH:mm:ss.SSS]
+ * 注意与 formatLogTimestamp（文件名用 YYYYMMDD_HHmmss）区分。
  */
-export function formatLogTimestamp(date: Date): string {
+export function formatLogLineStamp(date: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return (
     `[${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}.` +
@@ -75,7 +76,7 @@ export function extractLogLines(
   chunk: string,
   date: Date
 ): { lines: string[]; rest: string } {
-  const stamp = formatLogTimestamp(date);
+  const stamp = formatLogLineStamp(date);
   let pending = buffer + chunk;
   const lines: string[] = [];
   let idx: number;

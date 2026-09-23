@@ -6,7 +6,7 @@
 import { app, ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS, DEFAULT_MARKET_SOURCES, flattenConfig } from '@qserial/shared';
 import type { IConnection, TerminalSuggestion } from '@qserial/shared';
-import { extractLogLines, formatLogTimestamp } from '@qserial/shared';
+import { extractLogLines, formatLogLineStamp } from '@qserial/shared';
 import { ConnectionFactory } from '../services/connection/factory.js';
 import { ConfigManager } from '../config/manager.js';
 import { getLocalIp } from '../utils/network.js';
@@ -399,7 +399,7 @@ function setupLogHandlers(): void {
     if (!rest) return;
     logLineBuffers.delete(sessionId);
     try {
-      stream.write(`${formatLogTimestamp(new Date())}${rest.replace(/\r/g, '')}\n`);
+      stream.write(`${formatLogLineStamp(new Date())}${rest.replace(/\r/g, '')}\n`);
     } catch {
       /* ignore */
     }
