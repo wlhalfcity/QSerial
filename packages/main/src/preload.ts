@@ -3,7 +3,7 @@
  * 暴露安全的 API 给渲染进程
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { IPC_CHANNELS } from '@qserial/shared';
 
 // 暴露给渲染进程的 API
@@ -345,6 +345,35 @@ const api = {
       return () => ipcRenderer.off(IPC_CHANNELS.SFTP_PROGRESS_EVENT, handler);
     },
   },
+
+  ftpClient: {
+    create: (opts: { host: string; port?: number; user?: string; password?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_CREATE, opts),
+    destroy: (clientId: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_DESTROY, { clientId }),
+    list: (clientId: string, path: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_LIST, { clientId, path }),
+    download: (clientId: string, remotePath: string, localPath: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_DOWNLOAD, { clientId, remotePath, localPath }),
+    upload: (clientId: string, localPath: string, remotePath: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_UPLOAD, { clientId, localPath, remotePath }),
+    mkdir: (clientId: string, path: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_MKDIR, { clientId, path }),
+    rmdir: (clientId: string, path: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_RMDIR, { clientId, path }),
+    rm: (clientId: string, path: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_RM, { clientId, path }),
+    rename: (clientId: string, fromPath: string, toPath: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.FTP_CLIENT_RENAME, { clientId, fromPath, toPath }),
+    onProgress: (callback: (event: unknown) => void) => {
+      const handler = (_: unknown, event: unknown) => callback(event);
+      ipcRenderer.on(IPC_CHANNELS.FTP_CLIENT_PROGRESS_EVENT, handler);
+      return () => ipcRenderer.off(IPC_CHANNELS.FTP_CLIENT_PROGRESS_EVENT, handler);
+    },
+  },
+
+  // 拖拽文件落盘路径（Electron 32+ 移除 File.path 后的官方取法）
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
 };
 
 // 暴露 API

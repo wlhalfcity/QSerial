@@ -9,6 +9,7 @@ import { MainContent } from './MainContent';
 import { StatusBar } from './StatusBar';
 import { QuickButtonBar } from '../terminal/QuickButtonBar';
 import { AssistantPanel } from '../assistant';
+import { FtpClientPanel } from '../ftpClient/FtpClientPanel';
 import { useQuickButtonsStore } from '@/stores/quickButtons';
 import { useThemeStore } from '../../stores/theme';
 import { useTftpStore } from '../../stores/tftp';
@@ -72,6 +73,9 @@ export const Layout: React.FC = () => {
 
         {/* 智能助手面板 */}
         <AssistantPanel />
+
+        {/* FTP 客户端面板 */}
+        <FtpClientPanel />
 
         {/* 垂直模式的快捷按钮面板 */}
         {isVertical && (

@@ -44,7 +44,9 @@
     "noSavedSessions": "No saved sessions",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
-    "duplicateSuffix": " - copy"
+    "duplicateSuffix": " - copy",
+    "ftpServer": "FTP Server",
+    "ftpClient": "FTP Client"
   },
   "toolbar": {
     "newConnection": "New Connection",
@@ -673,6 +675,28 @@
     "moveLeft": "Move Left",
     "moveRight": "Move Right",
     "editGroupMenu": "Edit Group"
+  },
+  "ftpClient": {
+    "title": "FTP Client",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "host": "Host",
+    "port": "Port",
+    "user": "Username",
+    "userHint": "Leave empty for anonymous",
+    "password": "Password",
+    "refresh": "Refresh",
+    "newFolder": "New Folder",
+    "newFolderPlaceholder": "Folder name",
+    "name": "Name",
+    "size": "Size",
+    "modified": "Modified",
+    "emptyDir": "Empty directory",
+    "dropHint": "Drop files to upload",
+    "dropToUpload": "Drop to upload into this folder",
+    "delete": "Delete",
+    "downloadTip": "Double-click to download",
+    "openTip": "Double-click to open"
   },
   "sftpPanel": {
     "newFolder": "New Folder",

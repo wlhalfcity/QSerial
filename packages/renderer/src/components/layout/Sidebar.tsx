@@ -13,6 +13,7 @@ import { useNfsStore } from '@/stores/nfs';
 import { useFtpStore } from '@/stores/ftp';
 import { useMcpStore } from '@/stores/mcp';
 import { useAssistantStore } from '@/stores/assistant';
+import { useFtpClientStore } from '@/stores/ftpClient';
 import { ConnectionType, ConnectionState } from '@qserial/shared';
 import { SerialConnectDialog } from '../dialogs/SerialConnectDialog';
 import { SshConnectDialog } from '../dialogs/SshConnectDialog';
@@ -960,7 +961,7 @@ export const Sidebar: React.FC = () => {
               color: 'text-accent',
             },
             {
-              label: 'FTP',
+              label: t('sidebar.ftpServer'),
               port: 21,
               running: ftpRunning,
               onClick: () => setShowFtpDialog(true),
@@ -1010,6 +1011,32 @@ export const Sidebar: React.FC = () => {
                 </svg>
               ),
               color: 'text-warning',
+            },
+            {
+              label: t('sidebar.ftpClient'),
+              port: 0,
+              running: false,
+              onClick: () => useFtpClientStore.getState().openPanel(),
+              icon: (
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <rect
+                    x="2"
+                    y="4"
+                    width="12"
+                    height="9"
+                    rx="1.5"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                  />
+                  <path
+                    d="M2 7h12M5.5 10h3"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ),
+              color: 'text-accent',
             },
           ].map((svc) => (
             <div

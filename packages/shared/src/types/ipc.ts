@@ -101,6 +101,18 @@ export const IPC_CHANNELS = {
   // 终端输入建议（宿主聚合各插件注册的 SuggestionProvider）
   TERMINAL_SUGGEST: 'terminal:suggest',
 
+  // FTP 客户端（连接远端 FTP 服务器；ftp:* 前缀已被 FTP 服务器占用）
+  FTP_CLIENT_CREATE: 'ftpClient:create',
+  FTP_CLIENT_DESTROY: 'ftpClient:destroy',
+  FTP_CLIENT_LIST: 'ftpClient:list',
+  FTP_CLIENT_DOWNLOAD: 'ftpClient:download',
+  FTP_CLIENT_UPLOAD: 'ftpClient:upload',
+  FTP_CLIENT_MKDIR: 'ftpClient:mkdir',
+  FTP_CLIENT_RMDIR: 'ftpClient:rmdir',
+  FTP_CLIENT_RM: 'ftpClient:rm',
+  FTP_CLIENT_RENAME: 'ftpClient:rename',
+  FTP_CLIENT_PROGRESS_EVENT: 'ftpClient:progressEvent',
+
   // SFTP 文件传输
   SFTP_CREATE: 'sftp:create',
   SFTP_DESTROY: 'sftp:destroy',
@@ -155,6 +167,30 @@ export interface TerminalSuggestion {
 }
 
 /**
+ * FTP 客户端文件信息（由 basic-ftp 的 FileInfo 映射）
+ */
+export interface FtpClientFileInfo {
+  name: string;
+  type: 'file' | 'directory' | 'symlink';
+  size: number;
+  /** 修改时间（毫秒时间戳） */
+  modifyTime: number;
+}
+
+/**
+ * FTP 客户端传输进度事件
+ */
+export interface FtpClientProgressEvent {
+  clientId: string;
+  operation: 'download' | 'upload';
+  localPath: string;
+  remotePath: string;
+  total: number;
+  transferred: number;
+  percent: number;
+}
+
+/**
  * IPC 请求参数映射
  */
 export interface IpcRequestMap {
@@ -164,6 +200,20 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.CONNECTION_DESTROY]: { id: string };
   [IPC_CHANNELS.CONNECTION_WRITE]: { id: string; data: string };
   [IPC_CHANNELS.TERMINAL_SUGGEST]: { connectionId: string; currentLine: string };
+  [IPC_CHANNELS.FTP_CLIENT_CREATE]: {
+    host: string;
+    port?: number;
+    user?: string;
+    password?: string;
+  };
+  [IPC_CHANNELS.FTP_CLIENT_DESTROY]: { clientId: string };
+  [IPC_CHANNELS.FTP_CLIENT_LIST]: { clientId: string; path: string };
+  [IPC_CHANNELS.FTP_CLIENT_DOWNLOAD]: { clientId: string; remotePath: string; localPath: string };
+  [IPC_CHANNELS.FTP_CLIENT_UPLOAD]: { clientId: string; localPath: string; remotePath: string };
+  [IPC_CHANNELS.FTP_CLIENT_MKDIR]: { clientId: string; path: string };
+  [IPC_CHANNELS.FTP_CLIENT_RMDIR]: { clientId: string; path: string };
+  [IPC_CHANNELS.FTP_CLIENT_RM]: { clientId: string; path: string };
+  [IPC_CHANNELS.FTP_CLIENT_RENAME]: { clientId: string; fromPath: string; toPath: string };
   [IPC_CHANNELS.CONNECTION_RESIZE]: { id: string; cols: number; rows: number };
   [IPC_CHANNELS.CONNECTION_GET_STATE]: { id: string };
   [IPC_CHANNELS.SERIAL_LIST]: void;
@@ -328,6 +378,15 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.PLUGIN_CONFIG_SET]: void;
   [IPC_CHANNELS.PLUGIN_INVOKE]: unknown;
   [IPC_CHANNELS.TERMINAL_SUGGEST]: TerminalSuggestion[];
+  [IPC_CHANNELS.FTP_CLIENT_CREATE]: { clientId: string };
+  [IPC_CHANNELS.FTP_CLIENT_DESTROY]: void;
+  [IPC_CHANNELS.FTP_CLIENT_LIST]: FtpClientFileInfo[];
+  [IPC_CHANNELS.FTP_CLIENT_DOWNLOAD]: void;
+  [IPC_CHANNELS.FTP_CLIENT_UPLOAD]: void;
+  [IPC_CHANNELS.FTP_CLIENT_MKDIR]: void;
+  [IPC_CHANNELS.FTP_CLIENT_RMDIR]: void;
+  [IPC_CHANNELS.FTP_CLIENT_RM]: void;
+  [IPC_CHANNELS.FTP_CLIENT_RENAME]: void;
   [IPC_CHANNELS.PLUGIN_MARKET_FETCH]: MarketIndex;
   [IPC_CHANNELS.PLUGIN_MARKET_INSTALL]: PluginInfo[];
   [IPC_CHANNELS.PLUGIN_MARKET_UPDATE]: PluginInfo[];

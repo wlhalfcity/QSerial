@@ -206,8 +206,20 @@ export const useAssistantStore = create<AssistantState>()((set, get) => ({
   loading: false,
   error: null,
 
-  toggle: () => set((s) => ({ open: !s.open })),
-  openPanel: (tab) => set({ open: true, activeTab: tab ?? 'chat' }),
+  toggle: () =>
+    set((s) => {
+      const next = !s.open;
+      if (next) {
+        // 与 FTP 客户端面板互斥（动态 import 避免 ESM 循环依赖）
+        void import('./ftpClient').then((m) => m.useFtpClientStore.getState().closePanel());
+      }
+      return { open: next };
+    }),
+  openPanel: (tab) => {
+    // 与 FTP 客户端面板互斥（动态 import 避免 ESM 循环依赖）
+    void import('./ftpClient').then((m) => m.useFtpClientStore.getState().closePanel());
+    set({ open: true, activeTab: tab ?? 'chat' });
+  },
   closePanel: () => set({ open: false }),
   setTab: (tab) => set({ activeTab: tab }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

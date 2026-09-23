@@ -44,7 +44,9 @@
     "noSavedSessions": "暂无保存的配置",
     "expandSidebar": "展开侧边栏",
     "collapseSidebar": "折叠侧边栏",
-    "duplicateSuffix": " - 副本"
+    "duplicateSuffix": " - 副本",
+    "ftpServer": "FTP 服务器",
+    "ftpClient": "FTP 客户端"
   },
   "toolbar": {
     "newConnection": "新建连接",
@@ -673,6 +675,28 @@
     "moveLeft": "左移",
     "moveRight": "右移",
     "editGroupMenu": "编辑分组"
+  },
+  "ftpClient": {
+    "title": "FTP 客户端",
+    "connect": "连接",
+    "disconnect": "断开",
+    "host": "主机",
+    "port": "端口",
+    "user": "用户名",
+    "userHint": "留空使用匿名登录",
+    "password": "密码",
+    "refresh": "刷新",
+    "newFolder": "新建文件夹",
+    "newFolderPlaceholder": "文件夹名称",
+    "name": "名称",
+    "size": "大小",
+    "modified": "修改时间",
+    "emptyDir": "目录为空",
+    "dropHint": "拖入文件上传",
+    "dropToUpload": "松开以上传到当前目录",
+    "delete": "删除",
+    "downloadTip": "双击下载",
+    "openTip": "双击进入"
   },
   "sftpPanel": {
     "newFolder": "新建文件夹",

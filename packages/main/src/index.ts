@@ -442,6 +442,10 @@ app.on('before-quit', async (event) => {
     await import('./services/tftp/manager.js').then((m) => m.destroyTftpManager()).catch(() => {});
     // FTP 清理
     await import('./services/ftp/manager.js').then((m) => m.destroyFtpManager()).catch(() => {});
+    // FTP 客户端清理
+    await import('./services/ftp-client/manager.js')
+      .then((m) => m.destroyAllManager())
+      .catch(() => {});
     // MCP 清理
     await import('./services/mcp/manager.js').then((m) => m.destroyMcpManager()).catch(() => {});
     // 插件清理

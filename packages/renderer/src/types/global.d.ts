@@ -15,6 +15,8 @@ import type {
   FtpServerStatus,
   FtpClientInfo,
   FtpClientEvent,
+  FtpClientFileInfo,
+  FtpClientProgressEvent,
   PluginInfo,
   MarketIndex,
   PluginUpdateInfo,
@@ -203,6 +205,27 @@ interface QSerialAPI {
     realpath: (sftpId: string, path: string) => Promise<string>;
     onProgress: (callback: (event: SftpProgressEvent) => void) => () => void;
   };
+
+  ftpClient: {
+    create: (opts: {
+      host: string;
+      port?: number;
+      user?: string;
+      password?: string;
+    }) => Promise<{ clientId: string }>;
+    destroy: (clientId: string) => Promise<void>;
+    list: (clientId: string, path: string) => Promise<FtpClientFileInfo[]>;
+    download: (clientId: string, remotePath: string, localPath: string) => Promise<void>;
+    upload: (clientId: string, localPath: string, remotePath: string) => Promise<void>;
+    mkdir: (clientId: string, path: string) => Promise<void>;
+    rmdir: (clientId: string, path: string) => Promise<void>;
+    rm: (clientId: string, path: string) => Promise<void>;
+    rename: (clientId: string, fromPath: string, toPath: string) => Promise<void>;
+    onProgress: (callback: (event: FtpClientProgressEvent) => void) => () => void;
+  };
+
+  /** 拖拽文件转本地路径（Electron 32+ 移除 File.path 后的官方取法） */
+  pathForFile: (file: File) => string;
 }
 
 declare global {

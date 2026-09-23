@@ -83,6 +83,7 @@ export function setupIpcHandlers(): void {
   setupMcpHandlers();
   setupSftpHandlers();
   setupPluginHandlers();
+  setupFtpClientHandlers();
 
   console.log('IPC handlers registered');
 }
@@ -97,6 +98,9 @@ function setupMainWindowRefs(): void {
   import('../services/mcp/manager.js').then((m) => m.setMcpMainWindow(mainWindow)).catch(() => {});
   import('../services/sftp/manager.js')
     .then((m) => m.setSftpMainWindow(mainWindow))
+    .catch(() => {});
+  import('../services/ftp-client/manager.js')
+    .then((m) => m.setFtpClientMainWindow(mainWindow))
     .catch(() => {});
 }
 
@@ -617,6 +621,49 @@ function setupMcpHandlers(): void {
  * SFTP 文件传输处理器
  * 所有 handler 通过动态 import 延迟加载 ssh2 原生模块
  */
+/**
+ * FTP 客户端相关处理器
+ */
+function setupFtpClientHandlers(): void {
+  const m = () => import('../services/ftp-client/manager.js');
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_CREATE, async (_, { host, port, user, password }) =>
+    m().then((mod) => mod.createClient({ host, port, user, password }))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_DESTROY, async (_, { clientId }) =>
+    m().then((mod) => mod.destroyClient(clientId))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_LIST, async (_, { clientId, path }) =>
+    m().then((mod) => mod.listDir(clientId, path))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_DOWNLOAD, async (_, { clientId, remotePath, localPath }) =>
+    m().then((mod) => mod.downloadFile(clientId, remotePath, localPath))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_UPLOAD, async (_, { clientId, localPath, remotePath }) =>
+    m().then((mod) => mod.uploadFile(clientId, localPath, remotePath))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_MKDIR, async (_, { clientId, path }) =>
+    m().then((mod) => mod.mkdir(clientId, path))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_RMDIR, async (_, { clientId, path }) =>
+    m().then((mod) => mod.removeDir(clientId, path))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_RM, async (_, { clientId, path }) =>
+    m().then((mod) => mod.removeFile(clientId, path))
+  );
+
+  ipcMain.handle(IPC_CHANNELS.FTP_CLIENT_RENAME, async (_, { clientId, fromPath, toPath }) =>
+    m().then((mod) => mod.rename(clientId, fromPath, toPath))
+  );
+}
+
 function setupSftpHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SFTP_CREATE, async (_, { connectionId }) => {
     const { createSftp } = await import('../services/sftp/manager.js');
