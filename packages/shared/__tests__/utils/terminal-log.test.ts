@@ -4,6 +4,7 @@ import {
   formatLogTimestamp,
   buildLogFileName,
   buildLogFilePath,
+  extractLogLines,
 } from '../../src/utils/terminal-log.js';
 
 describe('sanitizeLogName', () => {
@@ -78,5 +79,51 @@ describe('buildLogFilePath', () => {
     expect(buildLogFilePath('D:\\qserial-logs', 'COM3', d)).toBe(
       'D:\\qserial-logs/COM3_20260922_171530.log'
     );
+  });
+});
+
+describe('formatLogTimestamp', () => {
+  it('输出 [HH:mm:ss.SSS] 本地时间，毫秒补零', () => {
+    expect(formatLogTimestamp(new Date(2026, 8, 22, 9, 5, 3, 7))).toBe('[09:05:03.007]');
+    expect(formatLogTimestamp(new Date(2026, 8, 22, 23, 59, 59, 999))).toBe('[23:59:59.999]');
+  });
+});
+
+describe('extractLogLines', () => {
+  const t = new Date(2026, 8, 23, 10, 15, 32, 123);
+  const STAMP = '[10:15:32.123]';
+
+  it('完整行加时间戳前缀并剔除回车符', () => {
+    const { lines, rest } = extractLogLines('', 'AT+CMGF=1\r\nOK\r\n', t);
+    expect(lines).toEqual([`${STAMP}AT+CMGF=1\n`, `${STAMP}OK\n`]);
+    expect(rest).toBe('');
+  });
+
+  it('半行跨分片缓冲，续片后结算', () => {
+    const first = extractLogLines('', 'RSSI=-', t);
+    expect(first.lines).toEqual([]);
+    expect(first.rest).toBe('RSSI=-');
+
+    const second = extractLogLines(first.rest, '75 dBm\r\n', t);
+    expect(second.lines).toEqual([`${STAMP}RSSI=-75 dBm\n`]);
+    expect(second.rest).toBe('');
+  });
+
+  it('一分片含多行与尾半行', () => {
+    const { lines, rest } = extractLogLines('', 'a\nb\nc', t);
+    expect(lines).toEqual([`${STAMP}a\n`, `${STAMP}b\n`]);
+    expect(rest).toBe('c');
+  });
+
+  it('行内回车符（进度条刷新）被剔除', () => {
+    const { lines } = extractLogLines('', '10%\r20%\r100%\n', t);
+    expect(lines).toEqual([`${STAMP}10%20%100%\n`]);
+  });
+
+  it('超过上限的无换行积压强制结算', () => {
+    const big = 'x'.repeat(9000);
+    const { lines, rest } = extractLogLines('', big, t);
+    expect(lines).toEqual([`${STAMP}${big}\n`]);
+    expect(rest).toBe('');
   });
 });

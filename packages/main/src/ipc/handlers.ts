@@ -6,6 +6,7 @@
 import { app, ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS, DEFAULT_MARKET_SOURCES, flattenConfig } from '@qserial/shared';
 import type { IConnection, TerminalSuggestion } from '@qserial/shared';
+import { extractLogLines, formatLogTimestamp } from '@qserial/shared';
 import { ConnectionFactory } from '../services/connection/factory.js';
 import { ConfigManager } from '../config/manager.js';
 import { getLocalIp } from '../utils/network.js';
@@ -389,6 +390,20 @@ function setupFtpHandlers(): void {
  */
 function setupLogHandlers(): void {
   const logStreams = new Map<string, fs.WriteStream>();
+  // 跨分片的行缓冲：日志按行加时间戳，半行等待后续数据
+  const logLineBuffers = new Map<string, string>();
+
+  // 结算半行（会话结束/退出时调用）
+  const flushLineBuffer = (sessionId: string, stream: fs.WriteStream): void => {
+    const rest = logLineBuffers.get(sessionId);
+    if (!rest) return;
+    logLineBuffers.delete(sessionId);
+    try {
+      stream.write(`${formatLogTimestamp(new Date())}${rest.replace(/\r/g, '')}\n`);
+    } catch {
+      /* ignore */
+    }
+  };
 
   ipcMain.handle(IPC_CHANNELS.LOG_PICK_FILE, async (_, { defaultName }) => {
     return pickSaveFile(
@@ -415,6 +430,7 @@ function setupLogHandlers(): void {
 
     const stream = fs.createWriteStream(filePath, { flags: 'a', encoding: 'utf-8' });
     logStreams.set(sessionId, stream);
+    logLineBuffers.set(sessionId, '');
 
     const timestamp = new Date().toLocaleString();
     stream.write(`\n========== 日志开始 [${timestamp}] ==========\n`);
@@ -423,24 +439,31 @@ function setupLogHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.LOG_STOP, async (_, { sessionId }) => {
     const stream = logStreams.get(sessionId);
     if (stream) {
+      flushLineBuffer(sessionId, stream);
       const timestamp = new Date().toLocaleString();
       stream.write(`\n========== 日志结束 [${timestamp}] ==========\n`);
       stream.end();
       logStreams.delete(sessionId);
+      logLineBuffers.delete(sessionId);
     }
   });
 
   ipcMain.handle(IPC_CHANNELS.LOG_WRITE, async (_, { sessionId, data }) => {
     const stream = logStreams.get(sessionId);
     if (!stream || !stream.writable) return;
-    if (!stream.write(data)) {
+    const { lines, rest } = extractLogLines(logLineBuffers.get(sessionId) ?? '', data, new Date());
+    logLineBuffers.set(sessionId, rest);
+    if (lines.length === 0) return;
+    const out = lines.join('');
+    if (!stream.write(out)) {
       await new Promise<void>((resolve) => stream.once('drain', resolve));
     }
   });
 
   app.on('before-quit', () => {
-    for (const [, stream] of logStreams) {
+    for (const [sessionId, stream] of logStreams) {
       try {
+        flushLineBuffer(sessionId, stream);
         const timestamp = new Date().toLocaleString();
         stream.write(`\n========== 日志结束 [${timestamp}] ==========\n`);
         stream.end();
@@ -449,6 +472,7 @@ function setupLogHandlers(): void {
       }
     }
     logStreams.clear();
+    logLineBuffers.clear();
   });
 }
 

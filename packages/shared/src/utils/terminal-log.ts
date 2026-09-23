@@ -48,3 +48,45 @@ export function buildLogFilePath(dir: string, name: string, openedAt: Date): str
   const trimmed = dir.replace(/[\\/]+$/, '');
   return `${trimmed}/${buildLogFileName(name, openedAt)}`;
 }
+
+/**
+ * 格式化日志行时间戳（本地时间）：[HH:mm:ss.SSS]
+ */
+export function formatLogTimestamp(date: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    `[${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}.` +
+    `${String(date.getMilliseconds()).padStart(3, '0')}]`
+  );
+}
+
+/** 无换行的日志积压上限，超过后强制结算为一行 */
+const LOG_BUFFER_LIMIT = 8192;
+
+/**
+ * 从流式日志分片中按行提取并加时间戳前缀（跨分片行缓冲）。
+ *
+ * 日志数据按任意边界分片到达，不保证按行对齐：完整行（以 \n 结束）加
+ * `[HH:mm:ss.SSS]` 前缀返回，行内回车符剔除；不完整的尾行留在 rest 中
+ * 等待后续分片。积压超过上限时强制结算，避免缓冲无限增长。
+ */
+export function extractLogLines(
+  buffer: string,
+  chunk: string,
+  date: Date
+): { lines: string[]; rest: string } {
+  const stamp = formatLogTimestamp(date);
+  let pending = buffer + chunk;
+  const lines: string[] = [];
+  let idx: number;
+  while ((idx = pending.indexOf('\n')) !== -1) {
+    const line = pending.slice(0, idx).replace(/\r/g, '');
+    pending = pending.slice(idx + 1);
+    lines.push(`${stamp}${line}\n`);
+  }
+  if (pending.length > LOG_BUFFER_LIMIT) {
+    lines.push(`${stamp}${pending.replace(/\r/g, '')}\n`);
+    pending = '';
+  }
+  return { lines, rest: pending };
+}
