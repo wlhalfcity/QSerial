@@ -15,6 +15,12 @@ permissions:
   contents: write   # 创建 Release 需要
   packages: write   # 上传 artifact 需要
 
+env:
+  # CI runner 在境外：覆盖项目 .npmrc 的国内镜像（npmmirror 境外访问大量超时），统一走官方源
+  npm_config_registry: https://registry.npmjs.org
+  npm_config_electron_mirror: https://github.com/electron/electron/releases/download/
+  FFMPEG_BINARIES_URL: https://github.com/eugeneware/ffmpeg-static/releases/download
+
 jobs:
   # ==========================================
   # Windows 构建（推荐，原生编译原生模块）

@@ -17,6 +17,12 @@ on:
         required: true
         default: "ci/sample-test.json"
 
+env:
+  # CI runner 在境外：覆盖项目 .npmrc 的国内镜像（npmmirror 境外访问大量超时），统一走官方源
+  npm_config_registry: https://registry.npmjs.org
+  npm_config_electron_mirror: https://github.com/electron/electron/releases/download/
+  FFMPEG_BINARIES_URL: https://github.com/eugeneware/ffmpeg-static/releases/download
+
 jobs:
   hardware-test:
     runs-on: windows-latest
