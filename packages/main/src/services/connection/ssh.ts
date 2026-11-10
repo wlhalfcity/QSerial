@@ -304,7 +304,11 @@ export class SshConnection implements IConnection {
 
       const onHandshake = () => {
         // 使用渲染进程上报的最新终端尺寸（握手期间 resize 会先暂存到 pending*）
-        const shellOptions = { term: 'xterm-256color', cols: this.pendingCols, rows: this.pendingRows };
+        const shellOptions = {
+          term: 'xterm-256color',
+          cols: this.pendingCols,
+          rows: this.pendingRows,
+        };
         this.client!.shell(shellOptions, (err, stream) => {
           if (err) {
             cleanup();
