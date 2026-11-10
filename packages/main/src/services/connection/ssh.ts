@@ -103,6 +103,10 @@ const ALGORITHM_PRESETS = {
 export class SshConnection implements IConnection {
   private client: Client | null = null;
   private stream: ClientChannel | null = null;
+  // 记住最近一次终端尺寸：shell 建立前的 resize 无法下发（stream 尚不存在），
+  // 先暂存，建 shell 时带上，避免远端 pty 停留在默认 80x24 导致长命令换行错位
+  private pendingCols = 80;
+  private pendingRows = 24;
   private eventEmitter = new EventEmitter();
   private _state: ConnectionState = ConnectionState.DISCONNECTED;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -299,7 +303,9 @@ export class SshConnection implements IConnection {
       };
 
       const onHandshake = () => {
-        this.client!.shell({ term: 'xterm-256color', cols: 80, rows: 24 }, (err, stream) => {
+        // 使用渲染进程上报的最新终端尺寸（握手期间 resize 会先暂存到 pending*）
+        const shellOptions = { term: 'xterm-256color', cols: this.pendingCols, rows: this.pendingRows };
+        this.client!.shell(shellOptions, (err, stream) => {
           if (err) {
             cleanup();
             reject(err);
@@ -427,6 +433,9 @@ export class SshConnection implements IConnection {
   }
 
   resize(cols: number, rows: number): void {
+    // stream 就绪前先暂存（shell 建立时会用）；就绪后立即下发 window-change
+    this.pendingCols = cols;
+    this.pendingRows = rows;
     if (this.stream) {
       this.stream.setWindow(rows, cols, 480, 640);
     }

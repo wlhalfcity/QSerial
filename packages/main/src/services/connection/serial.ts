@@ -37,6 +37,10 @@ export class SerialConnection implements IConnection {
   private isClosing = false;
   private sharedConnection: IConnection | null = null;
   private dataUnsubscriber: (() => void) | null = null;
+  // 渲染进程上报的最新终端尺寸（串口本身无尺寸通道，仅用于 syncTermSize 发送 stty）
+  private termCols: number | null = null;
+  private termRows: number | null = null;
+  private syncSizeTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly id: string;
   readonly type = ConnectionType.SERIAL;
@@ -146,12 +150,35 @@ export class SerialConnection implements IConnection {
       this._state = ConnectionState.CONNECTED;
       this.reconnectCount = 0;
       this.emitStateChange();
+      this.scheduleTermSizeSync();
     } catch (error) {
       this._state = ConnectionState.ERROR;
       this.emitStateChange();
       this.eventEmitter.emit('error', error);
       throw error;
     }
+  }
+
+  /**
+   * syncTermSize 开启时，连接成功后延迟发送 `stty cols/rows`，
+   * 让远端 shell 的行编辑器按本地终端宽度跟踪光标，避免长命令换行后
+   * 提示符覆盖上一行。延迟是给远端 getty/login 留出就绪时间。
+   */
+  private scheduleTermSizeSync(): void {
+    if (this.syncSizeTimer) {
+      clearTimeout(this.syncSizeTimer);
+      this.syncSizeTimer = null;
+    }
+    if (!this.options.syncTermSize || !this.termCols || !this.termRows) return;
+
+    const cols = this.termCols;
+    const rows = this.termRows;
+    this.syncSizeTimer = setTimeout(() => {
+      this.syncSizeTimer = null;
+      if (this.port?.isOpen && this._state === ConnectionState.CONNECTED) {
+        this.write(`stty cols ${cols} rows ${rows}\n`);
+      }
+    }, 800);
   }
 
   /**
@@ -198,6 +225,10 @@ export class SerialConnection implements IConnection {
     if (this.isClosing) return;
     this.isClosing = true;
     this.cancelReconnect();
+    if (this.syncSizeTimer) {
+      clearTimeout(this.syncSizeTimer);
+      this.syncSizeTimer = null;
+    }
 
     if (this.dataUnsubscriber) {
       this.dataUnsubscriber();
@@ -222,6 +253,10 @@ export class SerialConnection implements IConnection {
     if (this.isClosing) return;
     this.isClosing = true;
     this.cancelReconnect();
+    if (this.syncSizeTimer) {
+      clearTimeout(this.syncSizeTimer);
+      this.syncSizeTimer = null;
+    }
 
     if (this.dataUnsubscriber) {
       this.dataUnsubscriber();
@@ -264,8 +299,10 @@ export class SerialConnection implements IConnection {
     }
   }
 
-  resize(_cols: number, _rows: number): void {
-    // 串口不支持 resize
+  resize(cols: number, rows: number): void {
+    // 串口无法向硬件下发尺寸；记录下来供 syncTermSize 发送 stty 使用
+    this.termCols = cols;
+    this.termRows = rows;
   }
 
   onData(callback: (data: Buffer) => void): () => void {

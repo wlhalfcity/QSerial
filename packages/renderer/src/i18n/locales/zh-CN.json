@@ -82,6 +82,8 @@
       "refreshTitle": "刷新串口列表",
       "saveConfig": "保存此配置",
       "configNamePlaceholder": "配置名称，如：Arduino、ESP32...",
+      "syncTermSize": "连接后同步终端尺寸",
+      "syncTermSizeHint": "连接成功后自动向远端发送 stty 命令同步终端宽高，解决长命令换行后提示符覆盖上一行的问题（需远端为 Linux shell）",
       "manufacturer": "制造商: {{value}}",
       "serialNumber": "序列号: {{value}}",
       "save": "保存"

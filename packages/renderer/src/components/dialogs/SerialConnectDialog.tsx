@@ -22,6 +22,7 @@ export interface SerialConnectOptions {
   dataBits: 5 | 6 | 7 | 8;
   stopBits: 1 | 1.5 | 2;
   parity: 'none' | 'even' | 'odd' | 'mark' | 'space';
+  syncTermSize: boolean;
 }
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
@@ -43,6 +44,7 @@ export const SerialConnectDialog: React.FC<SerialConnectDialogProps> = ({
   const [dataBits, setDataBits] = useState<5 | 6 | 7 | 8>(8);
   const [stopBits, setStopBits] = useState<1 | 1.5 | 2>(1);
   const [parity, setParity] = useState<'none' | 'even' | 'odd' | 'mark' | 'space'>('none');
+  const [syncTermSize, setSyncTermSize] = useState(false);
   const [saveConfig, setSaveConfig] = useState(false);
   const [configName, setConfigName] = useState('');
   const PARITY_OPTIONS = [
@@ -66,6 +68,7 @@ export const SerialConnectDialog: React.FC<SerialConnectDialogProps> = ({
       setDataBits(Number(editSession.serialConfig.dataBits) as 5 | 6 | 7 | 8);
       setStopBits(Number(editSession.serialConfig.stopBits) as 1 | 1.5 | 2);
       setParity(editSession.serialConfig.parity);
+      setSyncTermSize(Boolean(editSession.serialConfig.syncTermSize));
       setConfigName(editSession.name);
       setSaveConfig(true);
     }
@@ -99,6 +102,7 @@ export const SerialConnectDialog: React.FC<SerialConnectDialogProps> = ({
       dataBits,
       stopBits,
       parity,
+      syncTermSize,
       saveConfig,
       configName: configName.trim() || undefined,
     });
@@ -267,6 +271,22 @@ export const SerialConnectDialog: React.FC<SerialConnectDialogProps> = ({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* 同步终端尺寸 */}
+          <div className="p-3 bg-background/50 rounded-lg border border-border/50">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={syncTermSize}
+                onChange={(e) => setSyncTermSize(e.target.checked)}
+                className="dialog-checkbox"
+              />
+              <span className="text-sm">{t('dialogs.serialConnect.syncTermSize')}</span>
+            </label>
+            <p className="text-xs text-text-secondary mt-1.5 ml-[26px]">
+              {t('dialogs.serialConnect.syncTermSizeHint')}
+            </p>
           </div>
 
           {/* 保存配置 */}

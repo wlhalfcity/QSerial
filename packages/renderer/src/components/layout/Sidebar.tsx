@@ -211,6 +211,7 @@ export const Sidebar: React.FC = () => {
     dataBits: 5 | 6 | 7 | 8;
     stopBits: 1 | 2;
     parity: 'none' | 'even' | 'odd' | 'mark' | 'space';
+    syncTermSize?: boolean;
     saveConfig?: boolean;
     configName?: string;
   }) => {
@@ -227,6 +228,7 @@ export const Sidebar: React.FC = () => {
         dataBits: options.dataBits,
         stopBits: options.stopBits,
         parity: options.parity,
+        syncTermSize: options.syncTermSize,
         autoReconnect: terminalConfig.autoReconnect,
         reconnectInterval: terminalConfig.reconnectInterval,
         reconnectAttempts: terminalConfig.reconnectAttempts,
@@ -250,6 +252,7 @@ export const Sidebar: React.FC = () => {
           dataBits: options.dataBits,
           stopBits: options.stopBits,
           parity: options.parity,
+          syncTermSize: options.syncTermSize,
         },
       });
       setSessionSavedId(sessionId, savedId);
@@ -281,6 +284,7 @@ export const Sidebar: React.FC = () => {
             dataBits: c.dataBits,
             stopBits: c.stopBits,
             parity: c.parity,
+            syncTermSize: c.syncTermSize,
             autoReconnect: terminalConfig.autoReconnect,
             reconnectInterval: terminalConfig.reconnectInterval,
             reconnectAttempts: terminalConfig.reconnectAttempts,
@@ -544,6 +548,7 @@ export const Sidebar: React.FC = () => {
     dataBits: 5 | 6 | 7 | 8;
     stopBits: 1 | 2;
     parity: 'none' | 'even' | 'odd' | 'mark' | 'space';
+    syncTermSize?: boolean;
     saveConfig?: boolean;
     configName?: string;
   }) => {
@@ -556,6 +561,7 @@ export const Sidebar: React.FC = () => {
           dataBits: opts.dataBits,
           stopBits: opts.stopBits,
           parity: opts.parity,
+          syncTermSize: opts.syncTermSize,
         },
       });
     handleSerialConnect(opts);

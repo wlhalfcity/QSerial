@@ -591,6 +591,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
           );
           updateSessionState(sessionId, state as ConnectionState);
           if (state === 'connected') {
+            // 连接建立后补发一次尺寸：挂载阶段的 resize 在 SSH 握手完成前会被
+            // main 侧忽略，不补发会导致远端 pty 停留在默认 80x24，长命令换行错位
+            resizeTerminal();
             const currentSession = useTerminalStore.getState().sessions[sessionId];
             if (currentSession?.connectionType === ConnectionType.SERIAL) {
               showConnectionSuccessMessage(xterm);
