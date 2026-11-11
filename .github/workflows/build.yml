@@ -53,6 +53,10 @@ jobs:
         run: pnpm package:win:ci
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # electron-builder(app-builder) 按 `${mirror}${version}` 拼 URL，version 不带 v，
+          # 故镜像地址必须以 v 结尾（与 npm install 阶段 @electron/get 的语义相反）
+          npm_config_electron_mirror: https://github.com/electron/electron/releases/download/v
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/v
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -89,6 +93,11 @@ jobs:
 
       - name: Package Linux
         run: pnpm package:linux
+        env:
+          # electron-builder(app-builder) 按 `${mirror}${version}` 拼 URL，version 不带 v，
+          # 故镜像地址必须以 v 结尾（与 npm install 阶段 @electron/get 的语义相反）
+          npm_config_electron_mirror: https://github.com/electron/electron/releases/download/v
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/v
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -127,6 +136,10 @@ jobs:
         run: pnpm package:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # electron-builder(app-builder) 按 `${mirror}${version}` 拼 URL，version 不带 v，
+          # 故镜像地址必须以 v 结尾（与 npm install 阶段 @electron/get 的语义相反）
+          npm_config_electron_mirror: https://github.com/electron/electron/releases/download/v
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/v
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
