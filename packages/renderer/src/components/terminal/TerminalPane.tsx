@@ -74,11 +74,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>();
     const searchPosRef = useRef(-1);
     const [showSerialShareDialog, setShowSerialShareDialog] = useState(false);
-    const [selectionMenu, setSelectionMenu] = useState<{
-      x: number;
-      y: number;
-      text: string;
-    } | null>(null);
     const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
     const mountCountRef = useRef(0);
     // 本地输入行镜像（跟踪用户敲键而非屏幕回显），供 ↑/↓ 历史命令匹配
@@ -961,9 +956,11 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         }}
         onContextMenu={(e) => {
           e.preventDefault();
+          // 右键直接复制选中内容（终端惯例操作），不弹菜单
           const selection = xtermRef.current?.getSelection();
           if (selection && selection.trim()) {
-            setSelectionMenu({ x: e.clientX, y: e.clientY, text: selection.trim() });
+            navigator.clipboard.writeText(selection).catch(() => {});
+            xtermRef.current?.clearSelection();
           }
         }}
       >
@@ -1459,37 +1456,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
           onClose={() => setShowSerialShareDialog(false)}
           defaultSessionId={sessionId}
         />
-
-        {/* 选中文本右键菜单：用助手分析 */}
-        {selectionMenu && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setSelectionMenu(null)} />
-            <div
-              className="fixed z-50 bg-surface border border-border rounded shadow-lg py-1 min-w-[160px]"
-              style={{ left: selectionMenu.x, top: selectionMenu.y }}
-            >
-              <button
-                onClick={() => {
-                  useAssistantStore.getState().analyzeText(selectionMenu.text);
-                  setSelectionMenu(null);
-                }}
-                className="w-full px-3 py-1.5 text-sm text-left hover:bg-hover flex items-center gap-2"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  className="text-primary"
-                >
-                  <circle cx="6" cy="6" r="3" stroke="currentColor" strokeWidth="1.1" />
-                  <circle cx="6" cy="6" r="1" fill="currentColor" opacity="0.5" />
-                </svg>
-                用助手分析
-              </button>
-            </div>
-          </>
-        )}
       </div>
     );
   }
