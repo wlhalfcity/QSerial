@@ -26,8 +26,8 @@ async function getSerialConnection() {
 }
 
 let _ConnectionServerConnection:
-  typeof import('../services/connection/connectionServer.js').ConnectionServerConnection | null =
-  null;
+  | typeof import('../services/connection/connectionServer.js').ConnectionServerConnection
+  | null = null;
 async function getConnectionServerConnection() {
   if (!_ConnectionServerConnection) {
     _ConnectionServerConnection = (await import('../services/connection/connectionServer.js'))
