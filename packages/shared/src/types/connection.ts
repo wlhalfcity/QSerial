@@ -63,9 +63,10 @@ export interface SerialConnectionOptions extends BaseConnectionOptions {
   flowControl?: 'none' | 'hardware' | 'software';
   encoding?: string;
   /**
-   * 连接成功后自动向远端发送 `stty cols/rows` 同步终端尺寸。
+   * 检测到远端 shell 提示符后自动发送 `stty cols/rows` 同步终端尺寸。
    * 串口协议没有窗口尺寸协商通道，远端 shell 的行编辑器按默认列宽（通常 80）
    * 跟踪光标行，本地终端更宽时长命令换行后提示符会覆盖上一行。
+   * 会避开登录阶段与用户正在编辑的行，避免命令污染 login/密码输入。
    * 仅当远端是 Linux shell 时有意义，默认关闭。
    */
   syncTermSize?: boolean;

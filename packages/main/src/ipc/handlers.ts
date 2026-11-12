@@ -26,8 +26,8 @@ async function getSerialConnection() {
 }
 
 let _ConnectionServerConnection:
-  | typeof import('../services/connection/connectionServer.js').ConnectionServerConnection
-  | null = null;
+  typeof import('../services/connection/connectionServer.js').ConnectionServerConnection | null =
+  null;
 async function getConnectionServerConnection() {
   if (!_ConnectionServerConnection) {
     _ConnectionServerConnection = (await import('../services/connection/connectionServer.js'))
@@ -39,8 +39,14 @@ async function getConnectionServerConnection() {
 let mainWindow: BrowserWindow | null = null;
 
 function safeSend(channel: string, data: unknown): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(channel, data);
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  // 窗口正在关闭时 webContents 可能已销毁，直接 send 会抛异常（主进程未捕获异常会退出）
+  const wc = mainWindow.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  try {
+    wc.send(channel, data);
+  } catch {
+    /* 渲染进程已销毁，忽略 */
   }
 }
 

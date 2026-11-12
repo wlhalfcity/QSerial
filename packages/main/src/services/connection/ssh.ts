@@ -112,6 +112,9 @@ export class SshConnection implements IConnection {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectCount = 0;
   private isClosing = false;
+  // 是否真正建立过一次 shell；首次连接失败（IP 不通/认证失败）不进入自动重连，
+  // 否则用户界面已经关闭会话，后台仍会不断重试并往无监听者的事件发射器发 error
+  private everConnected = false;
 
   readonly id: string;
   readonly type = ConnectionType.SSH;
@@ -175,7 +178,10 @@ export class SshConnection implements IConnection {
     let lastError: Error | null = null;
 
     for (const preset of algorithmPresets) {
+      if (this.isClosing) break;
       for (const auth of authMethods) {
+        // 用户已关闭/销毁连接时停止后续尝试，避免失败重试期间又新建 Client
+        if (this.isClosing) break;
         try {
           await this.tryConnect(auth, ALGORITHM_PRESETS[preset]);
           return; // 连接成功
@@ -201,6 +207,11 @@ export class SshConnection implements IConnection {
       }
     }
 
+    // 用户已关闭/销毁连接：保持 DISCONNECTED，不再改动状态，也不做自动重连
+    if (this.isClosing) {
+      throw lastError || new Error('Connection closed');
+    }
+
     // 所有方式都失败
     if (this.reconnectCount > 0) {
       // 重连失败时保持 RECONNECTING 状态（handleReconnect 会继续调度）
@@ -216,17 +227,12 @@ export class SshConnection implements IConnection {
     auth: { privateKey?: Buffer; password?: string; passphrase?: string },
     algorithms: typeof ALGORITHM_PRESETS.full
   ): Promise<void> {
-    // Cleanup previous client
-    if (this.client) {
-      try {
-        this.client.end();
-      } catch {
-        /* ignore */
-      }
-      this.client = null;
-    }
-    if (this.stream) {
-      this.stream = null;
+    // Cleanup previous client（连带摘除监听并保留空 error 监听，防止迟到错误打崩主进程）
+    this.closeClientSilently();
+    this.stream = null;
+
+    if (this.isClosing) {
+      throw new Error('Connection closed');
     }
 
     // SSH Jump Host: connect to bastion first, then tunnel to target
@@ -277,16 +283,24 @@ export class SshConnection implements IConnection {
     }
 
     return new Promise((resolve, reject) => {
-      this.client = new Client();
+      const client = new Client();
+      this.client = client;
+      let settled = false;
 
       const cleanup = () => {
-        this.client?.removeAllListeners();
+        // 不能只 removeAllListeners 后 end()：ssh2 在关闭过程中仍可能再 emit('error')，
+        // 此时没有监听者会抛 ERR_UNHANDLED_ERROR 直接把主进程打崩（表现为整个软件闪退）
+        // 仅当仍指向本次 client 时才清空，避免上一次尝试的迟到回调误伤新连接
+        if (this.client === client) {
+          this.client = null;
+        }
+        client.removeAllListeners();
+        client.on('error', () => {});
         try {
-          this.client?.end();
+          client.end();
         } catch {
           /* ignore */
         }
-        this.client = null;
         this.stream = null;
         if (jumpClient) {
           try {
@@ -298,21 +312,39 @@ export class SshConnection implements IConnection {
       };
 
       const onError = (err: Error) => {
+        if (settled) {
+          // 连接建立后发生的错误：交给上层提示，连接关闭由 client 'close' 事件统一处理
+          if (!this.isClosing) this.emitError(err);
+          return;
+        }
+        settled = true;
         cleanup();
         reject(err);
       };
 
       const onHandshake = () => {
+        // 握手完成前连接可能已被 cleanup/被新连接替换，此时不再建 shell
+        if (this.client !== client || this.isClosing) return;
         // 使用渲染进程上报的最新终端尺寸（握手期间 resize 会先暂存到 pending*）
         const shellOptions = {
           term: 'xterm-256color',
           cols: this.pendingCols,
           rows: this.pendingRows,
         };
-        this.client!.shell(shellOptions, (err, stream) => {
+        client.shell(shellOptions, (err, stream) => {
           if (err) {
+            if (settled) return;
+            settled = true;
             cleanup();
             reject(err);
+            return;
+          }
+          if (settled) {
+            try {
+              stream.close();
+            } catch {
+              /* ignore */
+            }
             return;
           }
 
@@ -322,29 +354,42 @@ export class SshConnection implements IConnection {
             this.eventEmitter.emit('data', data);
           });
 
+          // ClientChannel 的 'error' 没有监听者时会抛未捕获异常；连接中断时非常常见
+          stream.on('error', (streamErr: Error) => {
+            if (this.isClosing) return;
+            this.emitError(streamErr);
+          });
+
           stream.on('close', () => {
+            if (this.isClosing) return;
             this._state = ConnectionState.DISCONNECTED;
             this.emitStateChange();
             this.eventEmitter.emit('close');
-            this.client?.end();
+            this.closeClientSilently();
             this.handleReconnect();
           });
 
           stream.stderr.on('data', (data: Buffer) => {
             this.eventEmitter.emit('data', data);
           });
+          stream.stderr.on('error', () => {
+            /* stderr 流异常不影响会话，忽略 */
+          });
 
           this._state = ConnectionState.CONNECTED;
           this.reconnectCount = 0;
+          this.everConnected = true;
+          settled = true;
           this.emitStateChange();
           resolve();
         });
       };
 
-      this.client.on('ready', onHandshake);
-      this.client.on('error', onError);
+      client.on('ready', onHandshake);
+      client.on('error', onError);
 
-      this.client.on('close', () => {
+      client.on('close', () => {
+        if (this.isClosing || this.client !== client) return;
         this._state = ConnectionState.DISCONNECTED;
         this.emitStateChange();
         this.eventEmitter.emit('close');
@@ -383,7 +428,7 @@ export class SshConnection implements IConnection {
         config.hostVerifier = () => true;
       }
 
-      this.client.connect(config);
+      client.connect(config);
     });
   }
 
@@ -391,13 +436,17 @@ export class SshConnection implements IConnection {
     this.isClosing = true;
     this.cancelReconnect();
     if (this.stream) {
-      this.stream.end();
+      const stream = this.stream;
       this.stream = null;
+      stream.removeAllListeners();
+      stream.on('error', () => {});
+      try {
+        stream.end();
+      } catch {
+        /* ignore */
+      }
     }
-    if (this.client) {
-      this.client.end();
-      this.client = null;
-    }
+    this.closeClientSilently();
     this._state = ConnectionState.DISCONNECTED;
     this.emitStateChange();
   }
@@ -406,25 +455,55 @@ export class SshConnection implements IConnection {
     this.isClosing = true;
     this.cancelReconnect();
     if (this.stream) {
+      const stream = this.stream;
       this.stream = null;
+      stream.removeAllListeners();
+      stream.on('error', () => {});
     }
-    if (this.client) {
-      try {
-        this.client.end();
-      } catch {
-        /* ignore */
-      }
-      this.client = null;
-    }
+    this.closeClientSilently();
     this._state = ConnectionState.DISCONNECTED;
     this.eventEmitter.removeAllListeners();
   }
 
+  /**
+   * 关闭 ssh2 Client，并保留一个空 error 监听。
+   * ssh2 关闭过程中仍会 emit('error')，无监听者时 Node 会抛未捕获异常导致应用退出。
+   */
+  private closeClientSilently(): void {
+    const client = this.client;
+    this.client = null;
+    if (!client) return;
+    client.removeAllListeners();
+    client.on('error', () => {});
+    try {
+      client.end();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * 只在有监听者时 emit error。连接销毁后（渲染进程已移除监听）迟到的错误
+   * 若直接 emit('error') 会抛 ERR_UNHANDLED_ERROR，打崩主进程。
+   */
+  private emitError(err: unknown): void {
+    const error = err instanceof Error ? err : new Error(String(err));
+    if (this.eventEmitter.listenerCount('error') > 0) {
+      this.eventEmitter.emit('error', error);
+    } else {
+      console.warn('[ssh] connection error (no listener):', error.message);
+    }
+  }
+
   write(data: Buffer | string): void {
-    if (this.stream) {
-      // 将字符串转换为 Buffer，使用 UTF-8 编码以支持中文
-      const bufferData = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
-      this.stream.write(bufferData);
+    const stream = this.stream;
+    if (!stream || stream.destroyed || stream.writableEnded) return;
+    // 将字符串转换为 Buffer，使用 UTF-8 编码以支持中文
+    const bufferData = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
+    try {
+      stream.write(bufferData);
+    } catch (err) {
+      this.emitError(err);
     }
   }
 
@@ -440,8 +519,12 @@ export class SshConnection implements IConnection {
     // stream 就绪前先暂存（shell 建立时会用）；就绪后立即下发 window-change
     this.pendingCols = cols;
     this.pendingRows = rows;
-    if (this.stream) {
-      this.stream.setWindow(rows, cols, 480, 640);
+    const stream = this.stream;
+    if (!stream || stream.destroyed) return;
+    try {
+      stream.setWindow(rows, cols, 480, 640);
+    } catch {
+      /* 通道已关闭时忽略 */
     }
   }
 
@@ -470,7 +553,9 @@ export class SshConnection implements IConnection {
   }
 
   private handleReconnect(): void {
-    if (!this.options.autoReconnect || this.isClosing) {
+    // 从未成功连接过（IP 不通、认证失败）时不做自动重连：
+    // 界面上的会话已经关闭，后台重试只会不断失败并可能向已销毁的连接发错误
+    if (!this.options.autoReconnect || this.isClosing || !this.everConnected) {
       this.client = null;
       this.stream = null;
       if (this.isClosing) {
@@ -491,7 +576,7 @@ export class SshConnection implements IConnection {
     if (this.reconnectCount >= maxAttempts) {
       this._state = ConnectionState.DISCONNECTED;
       this.emitStateChange();
-      this.eventEmitter.emit('error', new Error(`重连失败，已达最大重试次数 (${maxAttempts})`));
+      this.emitError(new Error(`重连失败，已达最大重试次数 (${maxAttempts})`));
       return;
     }
 

@@ -83,7 +83,7 @@
       "saveConfig": "Save this configuration",
       "configNamePlaceholder": "Config name, e.g.: Arduino, ESP32...",
       "syncTermSize": "Sync terminal size after connect",
-      "syncTermSizeHint": "Automatically send an stty command to the remote end after connecting to sync terminal size, fixing the issue where a long wrapped command gets overwritten by the next prompt (requires a Linux shell on the remote)",
+      "syncTermSizeHint": "After the remote shell prompt is detected, automatically send an stty command to sync the terminal size without interfering with login input; fixes the issue where a long wrapped command gets overwritten by the next prompt (requires a Linux shell on the remote)",
       "manufacturer": "Manufacturer: {{value}}",
       "serialNumber": "Serial number: {{value}}",
       "save": "Save"

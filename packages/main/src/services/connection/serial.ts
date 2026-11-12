@@ -35,12 +35,23 @@ export class SerialConnection implements IConnection {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectCount = 0;
   private isClosing = false;
+  // 是否成功打开过串口；首次打开失败（设备不存在/权限不足）不自动重连
+  private everConnected = false;
   private sharedConnection: IConnection | null = null;
   private dataUnsubscriber: (() => void) | null = null;
   // 渲染进程上报的最新终端尺寸（串口本身无尺寸通道，仅用于 syncTermSize 发送 stty）
   private termCols: number | null = null;
   private termRows: number | null = null;
   private syncSizeTimer: ReturnType<typeof setTimeout> | null = null;
+  // 本次连接是否已下发过 stty（重连后重置）
+  private termSizeSynced = false;
+  // 尺寸变化后尚未重新同步
+  private pendingSizeChange = false;
+  // 最近一段远端输出（用于识别 shell 提示符，判断是否已登录完成）
+  private outputTail = '';
+  private atShellPrompt = false;
+  // 本地已输入字符但尚未回车（远端行编辑器正在编辑这一行）
+  private halfTypedInput = false;
 
   readonly id: string;
   readonly type = ConnectionType.SERIAL;
@@ -80,6 +91,10 @@ export class SerialConnection implements IConnection {
           ...(this.options.flowControl ? { flowControl: this.options.flowControl } : {}),
           autoOpen: false,
         });
+
+        // 先挂空 error 监听：serialport 是 Duplex，open 失败后若再 emit('error')
+        // 而没有监听者会抛未捕获异常，直接打崩主进程
+        port.on('error', () => {});
 
         await new Promise<void>((resolve, reject) => {
           port.open((err) => {
@@ -128,19 +143,24 @@ export class SerialConnection implements IConnection {
 
       // 数据监听
       this.port.on('data', (data: Buffer) => {
+        if (this.isClosing) return;
+        this.updatePromptState(data);
         this.eventEmitter.emit('data', data);
       });
 
       // 错误监听
       this.port.on('error', (error: Error) => {
+        // 关闭过程中迟到的错误直接忽略，避免发往已销毁的事件发射器
+        if (this.isClosing) return;
         this._state = ConnectionState.ERROR;
         this.emitStateChange();
-        this.eventEmitter.emit('error', error);
+        this.emitError(error);
         this.handleReconnect();
       });
 
       // 关闭监听
       this.port.on('close', () => {
+        if (this.isClosing) return;
         this._state = ConnectionState.DISCONNECTED;
         this.emitStateChange();
         this.eventEmitter.emit('close');
@@ -149,36 +169,91 @@ export class SerialConnection implements IConnection {
 
       this._state = ConnectionState.CONNECTED;
       this.reconnectCount = 0;
+      this.everConnected = true;
+      this.resetTermSizeSyncState();
       this.emitStateChange();
-      this.scheduleTermSizeSync();
     } catch (error) {
       this._state = ConnectionState.ERROR;
       this.emitStateChange();
-      this.eventEmitter.emit('error', error);
+      this.emitError(error);
       throw error;
     }
   }
 
   /**
-   * syncTermSize 开启时，连接成功后延迟发送 `stty cols/rows`，
-   * 让远端 shell 的行编辑器按本地终端宽度跟踪光标，避免长命令换行后
-   * 提示符覆盖上一行。延迟是给远端 getty/login 留出就绪时间。
+   * 串口是否可写（独占端口或共享连接）
    */
-  private scheduleTermSizeSync(): void {
+  private canWrite(): boolean {
+    return !!this.port?.isOpen || !!this.sharedConnection;
+  }
+
+  /**
+   * 重置本次连接的尺寸同步状态（打开/重连时调用）
+   */
+  private resetTermSizeSyncState(): void {
     if (this.syncSizeTimer) {
       clearTimeout(this.syncSizeTimer);
       this.syncSizeTimer = null;
     }
-    if (!this.options.syncTermSize || !this.termCols || !this.termRows) return;
+    this.termSizeSynced = false;
+    this.pendingSizeChange = false;
+    this.outputTail = '';
+    this.atShellPrompt = false;
+    this.halfTypedInput = false;
+  }
 
-    const cols = this.termCols;
-    const rows = this.termRows;
+  /**
+   * 维护远端输出尾部，识别 shell 提示符。
+   * 串口没有带外尺寸通道，只能等 shell 就绪后再发 stty——否则命令会被打进
+   * login:/Password: 输入行，污染登录。
+   */
+  private updatePromptState(data: Buffer): void {
+    this.outputTail = (this.outputTail + data.toString('latin1')).slice(-512);
+    // eslint-disable-next-line no-control-regex
+    const cleaned = this.outputTail.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1bO[A-Za-z]|\x1b/g, '');
+    const nl = Math.max(cleaned.lastIndexOf('\n'), cleaned.lastIndexOf('\r'));
+    // 提示符必须是换行后的短行，且以 $ # % 结尾（bash/dash/busybox/zsh 常见形态）
+    // 顺带排除了 "login: " / "Password: " 这类以冒号结尾的提示
+    const line = nl >= 0 ? cleaned.slice(nl + 1).replace(/[ \t]+$/, '') : '';
+    this.atShellPrompt = line.length > 0 && line.length <= 120 && /[#$%]$/.test(line);
+    if (this.atShellPrompt) {
+      this.maybeScheduleTermSizeSync();
+    }
+  }
+
+  /**
+   * 是否满足发送 stty 的条件：
+   * - 开启了 syncTermSize、已知终端尺寸、连接可写
+   * - 远端停在 shell 提示符（说明已登录完成）
+   * - 本地没有正在编辑的行（避免把命令插进用户输入）
+   */
+  private shouldSyncTermSize(): boolean {
+    if (!this.options.syncTermSize) return false;
+    if (!this.termCols || !this.termRows) return false;
+    if (this._state !== ConnectionState.CONNECTED || !this.canWrite()) return false;
+    if (this.termSizeSynced && !this.pendingSizeChange) return false;
+    return this.atShellPrompt && !this.halfTypedInput;
+  }
+
+  /**
+   * 在确认远端 shell 空闲时发送 `stty cols/rows`。
+   * 稍作去抖，避免提示符刚打印完还有后续输出；触发时再次校验条件，
+   * 若期间用户开始输入则放弃，等下一次提示符再试。
+   */
+  private maybeScheduleTermSizeSync(): void {
+    if (this.syncSizeTimer) {
+      clearTimeout(this.syncSizeTimer);
+      this.syncSizeTimer = null;
+    }
+    if (!this.shouldSyncTermSize()) return;
+
     this.syncSizeTimer = setTimeout(() => {
       this.syncSizeTimer = null;
-      if (this.port?.isOpen && this._state === ConnectionState.CONNECTED) {
-        this.write(`stty cols ${cols} rows ${rows}\n`);
-      }
-    }, 800);
+      if (!this.shouldSyncTermSize()) return;
+      this.termSizeSynced = true;
+      this.pendingSizeChange = false;
+      this.write(`stty cols ${this.termCols} rows ${this.termRows}\n`);
+    }, 300);
   }
 
   /**
@@ -192,6 +267,7 @@ export class SerialConnection implements IConnection {
     try {
       // 监听共享连接的数据
       this.dataUnsubscriber = sharedConnection.onData((data) => {
+        this.updatePromptState(data);
         this.eventEmitter.emit('data', data);
       });
 
@@ -201,22 +277,24 @@ export class SerialConnection implements IConnection {
           this._state = state;
           this.emitStateChange();
           if (state === ConnectionState.ERROR) {
-            this.eventEmitter.emit('error', new Error('Shared connection error'));
+            this.emitError(new Error('Shared connection error'));
           }
         }
       });
 
       // 监听共享连接的错误
       sharedConnection.onError((err) => {
-        this.eventEmitter.emit('error', err);
+        this.emitError(err);
       });
 
       this._state = ConnectionState.CONNECTED;
+      this.everConnected = true;
+      this.resetTermSizeSyncState();
       this.emitStateChange();
     } catch (error) {
       this._state = ConnectionState.ERROR;
       this.emitStateChange();
-      this.eventEmitter.emit('error', error);
+      this.emitError(error);
       throw error;
     }
   }
@@ -245,6 +323,8 @@ export class SerialConnection implements IConnection {
         });
       }
       port.removeAllListeners();
+      // 保留一个空 error 监听：serialport 是 Duplex，关闭后迟到的 error 无监听者会抛未捕获异常
+      port.on('error', () => {});
     }
     this._state = ConnectionState.DISCONNECTED;
     this.emitStateChange();
@@ -267,23 +347,57 @@ export class SerialConnection implements IConnection {
     const port = this.port;
     if (port) {
       this.port = null;
+      port.removeAllListeners();
+      port.on('error', () => {});
       if (port.isOpen) {
         port.close(() => {});
       }
-      port.removeAllListeners();
     }
     this._state = ConnectionState.DISCONNECTED;
     this.eventEmitter.removeAllListeners();
+  }
+
+  /**
+   * 只在有监听者时 emit error。会话销毁后迟到的设备错误若直接 emit('error')，
+   * 会抛 ERR_UNHANDLED_ERROR 导致主进程退出（表现为整个软件闪退）。
+   */
+  private emitError(err: unknown): void {
+    const error = err instanceof Error ? err : new Error(String(err));
+    if (this.eventEmitter.listenerCount('error') > 0) {
+      this.eventEmitter.emit('error', error);
+    } else {
+      console.warn('[serial] connection error (no listener):', error.message);
+    }
   }
 
   write(data: Buffer | string): void {
     // 将字符串转换为 Buffer，使用 UTF-8 编码以支持中文
     const bufferData = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
 
+    this.trackLocalInput(bufferData);
+
     if (this.port?.isOpen) {
       this.port.write(bufferData);
     } else if (this.sharedConnection) {
       this.sharedConnection.write(bufferData);
+    }
+  }
+
+  /**
+   * 跟踪本地输入，判断远端行编辑器是否正在编辑一行。
+   * 回车/换行 = 提交当前行；Ctrl+C / Ctrl+U = 清空当前行；其余按键视为编辑中。
+   * 只有确认不在编辑时才会注入 stty，避免污染用户输入。
+   */
+  private trackLocalInput(data: Buffer): void {
+    const text = data.toString('latin1');
+    if (!text) return;
+    const lastNl = Math.max(text.lastIndexOf('\n'), text.lastIndexOf('\r'));
+    if (lastNl >= 0) {
+      this.halfTypedInput = text.slice(lastNl + 1).length > 0;
+    } else if (text.includes('\x03') || text.includes('\x15')) {
+      this.halfTypedInput = false;
+    } else {
+      this.halfTypedInput = true;
     }
   }
 
@@ -301,8 +415,17 @@ export class SerialConnection implements IConnection {
 
   resize(cols: number, rows: number): void {
     // 串口无法向硬件下发尺寸；记录下来供 syncTermSize 发送 stty 使用
+    const changed = this.termCols !== cols || this.termRows !== rows;
     this.termCols = cols;
     this.termRows = rows;
+    if (changed) {
+      this.pendingSizeChange = true;
+    }
+    // 尺寸首次上报（连接时 open() 还拿不到）或发生变化时尝试下发；
+    // 若此时还在登录/窗口调整中，会等下一次 shell 提示符出现再发
+    if (changed || !this.termSizeSynced) {
+      this.maybeScheduleTermSizeSync();
+    }
   }
 
   onData(callback: (data: Buffer) => void): () => void {
@@ -330,7 +453,8 @@ export class SerialConnection implements IConnection {
   }
 
   private handleReconnect(): void {
-    if (!this.options.autoReconnect || this.isClosing) {
+    // 首次打开就失败（端口不存在/权限不足）不做自动重连：界面会话已关闭
+    if (!this.options.autoReconnect || this.isClosing || !this.everConnected) {
       this.port = null;
       if (this.isClosing) {
         this._state = ConnectionState.DISCONNECTED;
@@ -350,7 +474,7 @@ export class SerialConnection implements IConnection {
     if (this.reconnectCount >= maxAttempts) {
       this._state = ConnectionState.DISCONNECTED;
       this.emitStateChange();
-      this.eventEmitter.emit('error', new Error(`重连失败，已达最大重试次数 (${maxAttempts})`));
+      this.emitError(new Error(`重连失败，已达最大重试次数 (${maxAttempts})`));
       return;
     }
 

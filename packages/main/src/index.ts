@@ -13,10 +13,17 @@ import { ConfigManager } from './config/manager.js';
 // 尽早注册未处理异常处理器，确保能捕获模块加载阶段的崩溃
 process.on('uncaughtException', (error) => {
   console.error(`\n[FATAL] Uncaught Exception: ${error?.message}\n${error?.stack}\n`);
+  crashLog(`Uncaught Exception: ${error?.message}\n${error?.stack}`);
+  // 无监听者的 EventEmitter 'error'（如连接失败后迟到的网络错误）不应终止整个应用，
+  // 记录后继续运行；其余真正的未捕获异常仍按原逻辑退出，便于重启恢复
+  if ((error as NodeJS.ErrnoException | undefined)?.code === 'ERR_UNHANDLED_ERROR') {
+    return;
+  }
   process.exit(3);
 });
 process.on('unhandledRejection', (reason) => {
   console.error(`\n[FATAL] Unhandled Rejection: ${reason}\n`);
+  crashLog(`Unhandled Rejection: ${reason}`);
 });
 
 // 通用 process.dlopen 补丁：拦截所有 .node 文件加载，网络驱动器场景下自动复制到本地临时目录
