@@ -576,6 +576,11 @@
     "embeddedTool": "Embedded Terminal Debug Tool"
   },
   "terminalPane": {
+    "commandInput": "Command input",
+    "commandPlaceholder": "Type a command and press Enter",
+    "appendCRLF": "Append CRLF",
+    "commandSendFailed": "Failed to send command",
+
     "serialConnectSuccess": "★ Serial connected ★",
     "date": "Date",
     "time": "Time",

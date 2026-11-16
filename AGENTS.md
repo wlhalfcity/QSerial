@@ -1,4 +1,12 @@
-﻿# Repository Guidelines
+﻿# 全局偏好
+
+## 回复语言
+
+默认使用简体中文回复用户；仅在用户明确要求其他语言时切换。代码、命令、路径及必要的技术名称保留原文。
+
+---
+
+# Repository Guidelines
 
 ## Project Structure
 

@@ -55,6 +55,31 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     const wasDisconnectedRef = useRef(false);
     const isComposingRef = useRef(false);
     const compositionDataRef = useRef<string>('');
+    const [command, setCommand] = useState('');
+    const [appendCRLF, setAppendCRLF] = useState(true);
+    const [sending, setSending] = useState(false);
+    const sendingRef = useRef(false);
+    const commandCompositionRef = useRef(false);
+    const commandVersionRef = useRef(0);
+    const sendCommand = async () => {
+      if (!command || sendingRef.current || session?.connectionState !== ConnectionState.CONNECTED)
+        return;
+      const data = command + (appendCRLF ? '\r\n' : '\r');
+      const version = commandVersionRef.current;
+      sendingRef.current = true;
+      setSending(true);
+      try {
+        await window.qserial.connection.write(connectionId, data);
+        useTerminalMacroStore.getState().addStep(data);
+        lineBufferRef.current = '';
+        if (commandVersionRef.current === version) setCommand('');
+      } catch (error) {
+        globalError.show(t('terminalPane.commandSendFailed') + ': ' + (error as Error).message);
+      } finally {
+        sendingRef.current = false;
+        setSending(false);
+      }
+    };
     const [logStarting, setLogStarting] = useState(false);
     const [reconnectLoading, setReconnectLoading] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -944,163 +969,55 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
 
     return (
       <div
-        ref={containerRef}
-        className="terminal-container"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          visibility: isActive ? 'visible' : 'hidden',
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          // 右键直接复制选中内容（终端惯例操作），不弹菜单
-          const selection = xtermRef.current?.getSelection();
-          if (selection && selection.trim()) {
-            navigator.clipboard.writeText(selection).catch(() => {});
-            xtermRef.current?.clearSelection();
-          }
-        }}
+        className="absolute inset-0 flex flex-col"
+        style={{ visibility: isActive ? 'visible' : 'hidden' }}
       >
-        {/* 控制按钮组 */}
-        {isActive && (
-          <div className="absolute top-2 right-2 z-10 flex gap-2">
-            {/* 搜索栏 / 搜索按钮 */}
-            {searchVisible ? (
-              <div className="flex flex-col bg-surface/90 border border-primary/40 rounded">
-                <div className="flex items-center gap-1.5 px-2 py-1">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    className="text-primary flex-shrink-0"
-                  >
-                    <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.2" />
-                    <path
-                      d="M7.5 7.5L10.5 10.5"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchText}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (e.shiftKey) findPrevious();
-                        else findNext();
-                      } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        closeSearch();
-                      }
-                    }}
-                    className="bg-transparent text-xs text-text outline-none w-36 placeholder:text-text-tertiary/50"
-                    placeholder={t('terminalPane.searchPlaceholder')}
-                  />
-                  <button
-                    onClick={findPrevious}
-                    className="text-text-secondary/60 hover:text-text transition-colors p-0.5"
-                    title={t('terminalPane.prev')}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M3 7.5L6 4.5l3 3"
-                        stroke="currentColor"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={findNext}
-                    className="text-text-secondary/60 hover:text-text transition-colors p-0.5"
-                    title={t('terminalPane.next')}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M3 4.5L6 7.5l3-3"
-                        stroke="currentColor"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={toggleSearchCase}
-                    className={`text-[11px] leading-none px-1 py-0.5 rounded transition-colors ${
-                      searchCaseSensitive
-                        ? 'bg-primary/30 text-primary'
-                        : 'text-text-secondary/50 hover:text-text-secondary'
-                    }`}
-                    title={t('terminalPane.caseSensitive')}
-                  >
-                    Aa
-                  </button>
-                  <button
-                    onClick={toggleFilter}
-                    className={`p-0.5 rounded transition-colors ${
-                      filterEnabled
-                        ? 'bg-accent/30 text-accent'
-                        : 'text-text-secondary/50 hover:text-text-secondary'
-                    }`}
-                    title={t('terminalPane.secondFilter')}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M1 2h10L7 6.5V10l-2 1V6.5L1 2z"
-                        stroke="currentColor"
-                        strokeWidth="1.1"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={closeSearch}
-                    className="text-text-secondary/50 hover:text-text transition-colors p-0.5"
-                    title={t('terminalPane.close')}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M3 3l6 6M9 3l-6 6"
-                        stroke="currentColor"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                {filterEnabled && (
-                  <div className="flex items-center gap-1.5 px-2 pb-1 border-t border-border/50">
+        <div
+          ref={containerRef}
+          className="terminal-container"
+          style={{
+            position: 'relative',
+            flex: '1 1 0%',
+            minHeight: 0,
+            visibility: isActive ? 'visible' : 'hidden',
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            // 右键直接复制选中内容（终端惯例操作），不弹菜单
+            const selection = xtermRef.current?.getSelection();
+            if (selection && selection.trim()) {
+              navigator.clipboard.writeText(selection).catch(() => {});
+              xtermRef.current?.clearSelection();
+            }
+          }}
+        >
+          {/* 控制按钮组 */}
+          {isActive && (
+            <div className="absolute top-2 right-2 z-10 flex gap-2">
+              {/* 搜索栏 / 搜索按钮 */}
+              {searchVisible ? (
+                <div className="flex flex-col bg-surface/90 border border-primary/40 rounded">
+                  <div className="flex items-center gap-1.5 px-2 py-1">
                     <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
                       fill="none"
-                      className="text-accent flex-shrink-0 ml-0.5"
+                      className="text-primary flex-shrink-0"
                     >
+                      <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.2" />
                       <path
-                        d="M2 3l3 3 3-3"
+                        d="M7.5 7.5L10.5 10.5"
                         stroke="currentColor"
                         strokeWidth="1.2"
                         strokeLinecap="round"
-                        strokeLinejoin="round"
                       />
                     </svg>
                     <input
-                      ref={filterInputRef}
+                      ref={searchInputRef}
                       type="text"
-                      value={filterText}
-                      onChange={(e) => handleFilterInput(e.target.value)}
+                      value={searchText}
+                      onChange={(e) => handleSearchInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -1112,350 +1029,514 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
                         }
                       }}
                       className="bg-transparent text-xs text-text outline-none w-36 placeholder:text-text-tertiary/50"
-                      placeholder={t('terminalPane.searchFilterPlaceholder')}
+                      placeholder={t('terminalPane.searchPlaceholder')}
                     />
+                    <button
+                      onClick={findPrevious}
+                      className="text-text-secondary/60 hover:text-text transition-colors p-0.5"
+                      title={t('terminalPane.prev')}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M3 7.5L6 4.5l3 3"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={findNext}
+                      className="text-text-secondary/60 hover:text-text transition-colors p-0.5"
+                      title={t('terminalPane.next')}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M3 4.5L6 7.5l3-3"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={toggleSearchCase}
+                      className={`text-[11px] leading-none px-1 py-0.5 rounded transition-colors ${
+                        searchCaseSensitive
+                          ? 'bg-primary/30 text-primary'
+                          : 'text-text-secondary/50 hover:text-text-secondary'
+                      }`}
+                      title={t('terminalPane.caseSensitive')}
+                    >
+                      Aa
+                    </button>
+                    <button
+                      onClick={toggleFilter}
+                      className={`p-0.5 rounded transition-colors ${
+                        filterEnabled
+                          ? 'bg-accent/30 text-accent'
+                          : 'text-text-secondary/50 hover:text-text-secondary'
+                      }`}
+                      title={t('terminalPane.secondFilter')}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M1 2h10L7 6.5V10l-2 1V6.5L1 2z"
+                          stroke="currentColor"
+                          strokeWidth="1.1"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={closeSearch}
+                      className="text-text-secondary/50 hover:text-text transition-colors p-0.5"
+                      title={t('terminalPane.close')}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M3 3l6 6M9 3l-6 6"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </button>
                   </div>
-                )}
-              </div>
-            ) : (
+                  {filterEnabled && (
+                    <div className="flex items-center gap-1.5 px-2 pb-1 border-t border-border/50">
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        className="text-accent flex-shrink-0 ml-0.5"
+                      >
+                        <path
+                          d="M2 3l3 3 3-3"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <input
+                        ref={filterInputRef}
+                        type="text"
+                        value={filterText}
+                        onChange={(e) => handleFilterInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (e.shiftKey) findPrevious();
+                            else findNext();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            closeSearch();
+                          }
+                        }}
+                        className="bg-transparent text-xs text-text outline-none w-36 placeholder:text-text-tertiary/50"
+                        placeholder={t('terminalPane.searchFilterPlaceholder')}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={openSearch}
+                  className="px-2 py-1 border rounded text-xs transition-colors bg-surface/80 border-border hover:bg-hover flex items-center gap-1.5"
+                  title={t('terminalPane.searchTitle')}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    className="text-text-secondary"
+                  >
+                    <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.2" />
+                    <path
+                      d="M7.5 7.5L10.5 10.5"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  {t('terminalPane.search')}
+                </button>
+              )}
+
+              {/* 日志控制按钮 */}
               <button
-                onClick={openSearch}
+                onClick={isLogging ? handleStopLog : handleStartLog}
+                disabled={logStarting}
+                className={`px-2 py-1 border rounded text-xs transition-colors flex items-center gap-1.5 ${
+                  isLogging
+                    ? 'bg-red-500/80 border-red-400 text-white hover:bg-red-600/80'
+                    : 'bg-surface/80 border-border hover:bg-hover'
+                }`}
+                title={isLogging ? t('terminalPane.stopLog') : t('terminalPane.startLog')}
+              >
+                {logStarting ? (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+                      <path
+                        d="M6 3v3l2 1"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    {t('terminalPane.starting')}
+                  </>
+                ) : isLogging ? (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <rect
+                        x="2"
+                        y="2"
+                        width="8"
+                        height="8"
+                        rx="1.5"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                      />
+                      <path d="M4.5 2.5v7" stroke="currentColor" strokeWidth="0.8" />
+                      <path d="M7.5 2.5v7" stroke="currentColor" strokeWidth="0.8" />
+                    </svg>
+                    {t('terminalPane.stopLogLabel')}
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      className="text-primary"
+                    >
+                      <path
+                        d="M2 2.5h6l2 2v6H2z"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinejoin="round"
+                      />
+                      <path d="M2 10.5v-8h4l.5 1.5H10" stroke="currentColor" strokeWidth="1.2" />
+                      <path
+                        d="M4 8l1.5 1.5L8 6.5"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {t('terminalPane.startLogLabel')}
+                  </>
+                )}
+              </button>
+
+              {/* 连接共享按钮 - 所有活跃连接可共享 */}
+              {canShare && (
+                <button
+                  onClick={() => setShowSerialShareDialog(true)}
+                  className="px-2 py-1 border rounded text-xs transition-colors bg-surface/80 border-border hover:bg-hover flex items-center gap-1.5"
+                  title={t('terminalPane.shareTitle')}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    className="text-accent"
+                  >
+                    <path
+                      d="M7 2.5l3 3-3 3"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10 5.5H5a2 2 0 00-2 2v1"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="3" cy="9.5" r="1.2" stroke="currentColor" strokeWidth="0.8" />
+                  </svg>
+                  {t('terminalPane.share')}
+                </button>
+              )}
+
+              {/* 宏录制按钮 */}
+              <button
+                onClick={isRecording ? handleStopRecord : handleStartRecord}
+                className={`px-2 py-1 border rounded text-xs transition-colors flex items-center gap-1.5 ${isRecording ? 'bg-red-500/80 border-red-400 text-white hover:bg-red-600/80' : 'bg-surface/80 border-border hover:bg-hover'}`}
+                title={
+                  isRecording
+                    ? t('terminalPane.stopRecording', {
+                        count: macroStore.getState().recordingSteps.length,
+                      })
+                    : t('terminalPane.startRecording')
+                }
+              >
+                {isRecording ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>REC{' '}
+                    {macroStore.getState().recordingSteps.length > 0
+                      ? '(' + macroStore.getState().recordingSteps.length + ')'
+                      : ''}
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      className="text-error"
+                    >
+                      <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.2" />
+                    </svg>
+                    {t('terminalPane.record')}
+                  </>
+                )}
+              </button>
+
+              {/* AI 生成命令按钮 */}
+              <button
+                onClick={() => {
+                  useAssistantStore.getState().openPanel('chat');
+                  useAssistantStore.getState().setGenerateMode(true);
+                }}
                 className="px-2 py-1 border rounded text-xs transition-colors bg-surface/80 border-border hover:bg-hover flex items-center gap-1.5"
-                title={t('terminalPane.searchTitle')}
+                title="用自然语言描述需求，AI 生成命令"
               >
                 <svg
                   width="12"
                   height="12"
                   viewBox="0 0 12 12"
                   fill="none"
-                  className="text-text-secondary"
+                  className="text-primary"
                 >
-                  <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.2" />
-                  <path
-                    d="M7.5 7.5L10.5 10.5"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                  />
+                  <circle cx="6" cy="6" r="3" stroke="currentColor" strokeWidth="1.1" />
+                  <circle cx="6" cy="6" r="1.1" fill="currentColor" opacity="0.5" />
                 </svg>
-                {t('terminalPane.search')}
+                AI 生成
               </button>
-            )}
 
-            {/* 日志控制按钮 */}
-            <button
-              onClick={isLogging ? handleStopLog : handleStartLog}
-              disabled={logStarting}
-              className={`px-2 py-1 border rounded text-xs transition-colors flex items-center gap-1.5 ${
-                isLogging
-                  ? 'bg-red-500/80 border-red-400 text-white hover:bg-red-600/80'
-                  : 'bg-surface/80 border-border hover:bg-hover'
-              }`}
-              title={isLogging ? t('terminalPane.stopLog') : t('terminalPane.startLog')}
-            >
-              {logStarting ? (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
-                    <path
-                      d="M6 3v3l2 1"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  {t('terminalPane.starting')}
-                </>
-              ) : isLogging ? (
-                <>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <rect
-                      x="2"
-                      y="2"
-                      width="8"
-                      height="8"
-                      rx="1.5"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                    />
-                    <path d="M4.5 2.5v7" stroke="currentColor" strokeWidth="0.8" />
-                    <path d="M7.5 2.5v7" stroke="currentColor" strokeWidth="0.8" />
-                  </svg>
-                  {t('terminalPane.stopLogLabel')}
-                </>
-              ) : (
-                <>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    className="text-primary"
+              {/* 重连按钮 - 手动重连（断开或出错时显示，服务端连接除外） */}
+              {(isDisconnected || isError) &&
+                session?.connectionType !== ConnectionType.CONNECTION_SERVER &&
+                session?.connectionType !== ConnectionType.SERIAL_SERVER && (
+                  <button
+                    onClick={handleReconnect}
+                    disabled={reconnectLoading}
+                    className={`px-2 py-1 border rounded text-xs transition-colors flex items-center gap-1.5 ${
+                      reconnectLoading
+                        ? 'bg-surface/80 border-border opacity-50'
+                        : 'bg-blue-500/80 border-blue-400 text-white hover:bg-blue-600/80'
+                    }`}
+                    title={t('terminalPane.reconnectTitle')}
                   >
-                    <path
-                      d="M2 2.5h6l2 2v6H2z"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                      strokeLinejoin="round"
-                    />
-                    <path d="M2 10.5v-8h4l.5 1.5H10" stroke="currentColor" strokeWidth="1.2" />
-                    <path
-                      d="M4 8l1.5 1.5L8 6.5"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  {t('terminalPane.startLogLabel')}
-                </>
-              )}
-            </button>
+                    {reconnectLoading ? (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+                          <path
+                            d="M6 3v3l2 1"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        {t('terminalPane.connecting')}
+                      </>
+                    ) : (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path
+                            d="M2.5 5A4 4 0 019 3.5"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="M9.5 7A4 4 0 013 8.5"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="M9 1.5l1.5 2-2 1"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M3 10.5l-1.5-2 2-1"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        {t('terminalPane.reconnect')}
+                      </>
+                    )}
+                  </button>
+                )}
+            </div>
+          )}
+          {/* 日志文件路径提示 */}
+          {isActive && isLogging && session?.logFilePath && (
+            <div className="absolute top-10 right-2 z-10 px-2 py-1 bg-success/90 text-white rounded text-xs max-w-[200px] truncate">
+              📄 {session.logFilePath.split(/[/\\]/).pop()}
+            </div>
+          )}
 
-            {/* 连接共享按钮 - 所有活跃连接可共享 */}
-            {canShare && (
-              <button
-                onClick={() => setShowSerialShareDialog(true)}
-                className="px-2 py-1 border rounded text-xs transition-colors bg-surface/80 border-border hover:bg-hover flex items-center gap-1.5"
-                title={t('terminalPane.shareTitle')}
+          {/* 宏保存对话框 */}
+          {showMacroSave && (
+            <div className="dialog-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div
+                className="bg-surface border border-border/80 rounded-xl shadow-md w-[360px]"
+                onClick={(e) => e.stopPropagation()}
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-accent">
-                  <path
-                    d="M7 2.5l3 3-3 3"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M10 5.5H5a2 2 0 00-2 2v1"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="3" cy="9.5" r="1.2" stroke="currentColor" strokeWidth="0.8" />
-                </svg>
-                {t('terminalPane.share')}
-              </button>
-            )}
-
-            {/* 宏录制按钮 */}
-            <button
-              onClick={isRecording ? handleStopRecord : handleStartRecord}
-              className={`px-2 py-1 border rounded text-xs transition-colors flex items-center gap-1.5 ${isRecording ? 'bg-red-500/80 border-red-400 text-white hover:bg-red-600/80' : 'bg-surface/80 border-border hover:bg-hover'}`}
-              title={
-                isRecording
-                  ? t('terminalPane.stopRecording', {
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <h3 className="text-sm font-medium">{t('terminalPane.saveMacroTitle')}</h3>
+                  <span className="text-xs text-text-secondary">
+                    {t('terminalPane.steps', {
                       count: macroStore.getState().recordingSteps.length,
-                    })
-                  : t('terminalPane.startRecording')
-              }
-            >
-              {isRecording ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>REC{' '}
-                  {macroStore.getState().recordingSteps.length > 0
-                    ? '(' + macroStore.getState().recordingSteps.length + ')'
-                    : ''}
-                </>
-              ) : (
-                <>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    className="text-error"
-                  >
-                    <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.2" />
-                  </svg>
-                  {t('terminalPane.record')}
-                </>
-              )}
-            </button>
-
-            {/* AI 生成命令按钮 */}
-            <button
-              onClick={() => {
-                useAssistantStore.getState().openPanel('chat');
-                useAssistantStore.getState().setGenerateMode(true);
-              }}
-              className="px-2 py-1 border rounded text-xs transition-colors bg-surface/80 border-border hover:bg-hover flex items-center gap-1.5"
-              title="用自然语言描述需求，AI 生成命令"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-primary">
-                <circle cx="6" cy="6" r="3" stroke="currentColor" strokeWidth="1.1" />
-                <circle cx="6" cy="6" r="1.1" fill="currentColor" opacity="0.5" />
-              </svg>
-              AI 生成
-            </button>
-
-            {/* 重连按钮 - 手动重连（断开或出错时显示，服务端连接除外） */}
-            {(isDisconnected || isError) &&
-              session?.connectionType !== ConnectionType.CONNECTION_SERVER &&
-              session?.connectionType !== ConnectionType.SERIAL_SERVER && (
-                <button
-                  onClick={handleReconnect}
-                  disabled={reconnectLoading}
-                  className={`px-2 py-1 border rounded text-xs transition-colors flex items-center gap-1.5 ${
-                    reconnectLoading
-                      ? 'bg-surface/80 border-border opacity-50'
-                      : 'bg-blue-500/80 border-blue-400 text-white hover:bg-blue-600/80'
-                  }`}
-                  title={t('terminalPane.reconnectTitle')}
-                >
-                  {reconnectLoading ? (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
-                        <path
-                          d="M6 3v3l2 1"
-                          stroke="currentColor"
-                          strokeWidth="1.2"
-                          strokeLinecap="round"
+                    })}
+                  </span>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-1.5 font-medium">
+                      {t('terminalPane.name')}
+                    </label>
+                    <input
+                      type="text"
+                      value={macroName}
+                      onChange={(e) => setMacroName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveMacro();
+                        else if (e.key === 'Escape') {
+                          setShowMacroSave(false);
+                          setMacroName('');
+                          setMacroDesc('');
+                          setMacroColor('');
+                        }
+                      }}
+                      className="dialog-input"
+                      placeholder={t('terminalPane.namePlaceholder')}
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-1.5 font-medium">
+                      {t('terminalPane.descriptionOptional')}
+                    </label>
+                    <input
+                      type="text"
+                      value={macroDesc}
+                      onChange={(e) => setMacroDesc(e.target.value)}
+                      className="dialog-input"
+                      placeholder={t('terminalPane.descriptionPlaceholder')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-1.5 font-medium">
+                      {t('terminalPane.colorMarkOptional')}
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_MACRO_COLORS.map((c) => (
+                        <button
+                          key={c.value || 'default'}
+                          onClick={() => setMacroColor(c.value)}
+                          className={`w-5 h-5 rounded border-2 transition-all ${macroColor === c.value ? 'border-white scale-110' : 'border-transparent'}`}
+                          style={{ backgroundColor: c.value || '#6B7280' }}
+                          title={c.name}
                         />
-                      </svg>
-                      {t('terminalPane.connecting')}
-                    </>
-                  ) : (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path
-                          d="M2.5 5A4 4 0 019 3.5"
-                          stroke="currentColor"
-                          strokeWidth="1.2"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M9.5 7A4 4 0 013 8.5"
-                          stroke="currentColor"
-                          strokeWidth="1.2"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M9 1.5l1.5 2-2 1"
-                          stroke="currentColor"
-                          strokeWidth="1.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M3 10.5l-1.5-2 2-1"
-                          stroke="currentColor"
-                          strokeWidth="1.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      {t('terminalPane.reconnect')}
-                    </>
-                  )}
-                </button>
-              )}
-          </div>
-        )}
-        {/* 日志文件路径提示 */}
-        {isActive && isLogging && session?.logFilePath && (
-          <div className="absolute top-10 right-2 z-10 px-2 py-1 bg-success/90 text-white rounded text-xs max-w-[200px] truncate">
-            📄 {session.logFilePath.split(/[/\\]/).pop()}
-          </div>
-        )}
-
-        {/* 宏保存对话框 */}
-        {showMacroSave && (
-          <div className="dialog-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div
-              className="bg-surface border border-border/80 rounded-xl shadow-md w-[360px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <h3 className="text-sm font-medium">{t('terminalPane.saveMacroTitle')}</h3>
-                <span className="text-xs text-text-secondary">
-                  {t('terminalPane.steps', { count: macroStore.getState().recordingSteps.length })}
-                </span>
-              </div>
-              <div className="p-4 space-y-3">
-                <div>
-                  <label className="block text-xs text-text-secondary mb-1.5 font-medium">
-                    {t('terminalPane.name')}
-                  </label>
-                  <input
-                    type="text"
-                    value={macroName}
-                    onChange={(e) => setMacroName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveMacro();
-                      else if (e.key === 'Escape') {
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
                         setShowMacroSave(false);
                         setMacroName('');
                         setMacroDesc('');
                         setMacroColor('');
-                      }
-                    }}
-                    className="dialog-input"
-                    placeholder={t('terminalPane.namePlaceholder')}
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-text-secondary mb-1.5 font-medium">
-                    {t('terminalPane.descriptionOptional')}
-                  </label>
-                  <input
-                    type="text"
-                    value={macroDesc}
-                    onChange={(e) => setMacroDesc(e.target.value)}
-                    className="dialog-input"
-                    placeholder={t('terminalPane.descriptionPlaceholder')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-text-secondary mb-1.5 font-medium">
-                    {t('terminalPane.colorMarkOptional')}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {PRESET_MACRO_COLORS.map((c) => (
-                      <button
-                        key={c.value || 'default'}
-                        onClick={() => setMacroColor(c.value)}
-                        className={`w-5 h-5 rounded border-2 transition-all ${macroColor === c.value ? 'border-white scale-110' : 'border-transparent'}`}
-                        style={{ backgroundColor: c.value || '#6B7280' }}
-                        title={c.name}
-                      />
-                    ))}
+                      }}
+                      className="px-3 py-1.5 text-xs rounded border border-border hover:bg-hover"
+                    >
+                      {t('terminalPane.cancel')}
+                    </button>
+                    <button
+                      onClick={handleSaveMacro}
+                      disabled={!macroName.trim()}
+                      className="px-3 py-1.5 text-xs rounded bg-primary text-white disabled:opacity-50"
+                    >
+                      {t('terminalPane.save')}
+                    </button>
                   </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => {
-                      setShowMacroSave(false);
-                      setMacroName('');
-                      setMacroDesc('');
-                      setMacroColor('');
-                    }}
-                    className="px-3 py-1.5 text-xs rounded border border-border hover:bg-hover"
-                  >
-                    {t('terminalPane.cancel')}
-                  </button>
-                  <button
-                    onClick={handleSaveMacro}
-                    disabled={!macroName.trim()}
-                    className="px-3 py-1.5 text-xs rounded bg-primary text-white disabled:opacity-50"
-                  >
-                    {t('terminalPane.save')}
-                  </button>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 串口共享对话框 */}
-        <ConnectionShareDialog
-          isOpen={showSerialShareDialog}
-          onClose={() => setShowSerialShareDialog(false)}
-          defaultSessionId={sessionId}
-        />
+          {/* 串口共享对话框 */}
+          <ConnectionShareDialog
+            isOpen={showSerialShareDialog}
+            onClose={() => setShowSerialShareDialog(false)}
+            defaultSessionId={sessionId}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface px-3 py-2">
+          <input
+            type="text"
+            aria-label={t('terminalPane.commandInput')}
+            placeholder={t('terminalPane.commandPlaceholder')}
+            className="min-w-0 flex-1 rounded border border-border bg-transparent px-2 py-1 text-sm text-text-primary focus:outline-none focus:border-primary"
+            value={command}
+            aria-busy={sending}
+            onChange={(e) => {
+              commandVersionRef.current++;
+              setCommand(e.target.value);
+            }}
+            onCompositionStart={() => {
+              commandCompositionRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              commandCompositionRef.current = false;
+            }}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                !commandCompositionRef.current &&
+                e.keyCode !== 229
+              ) {
+                e.preventDefault();
+                if (!e.repeat) void sendCommand();
+              }
+            }}
+          />
+          <label className="flex shrink-0 items-center gap-1.5 text-xs text-text-secondary">
+            <input
+              type="checkbox"
+              checked={appendCRLF}
+              onChange={(e) => setAppendCRLF(e.target.checked)}
+            />
+            {t('terminalPane.appendCRLF')}
+          </label>
+        </div>
       </div>
     );
   }

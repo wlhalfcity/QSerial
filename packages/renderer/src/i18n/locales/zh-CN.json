@@ -576,6 +576,11 @@
     "embeddedTool": "嵌入式终端调试工具"
   },
   "terminalPane": {
+    "commandInput": "指令输入",
+    "commandPlaceholder": "输入指令后按 Enter 发送",
+    "appendCRLF": "回车换行（CRLF）",
+    "commandSendFailed": "指令发送失败",
+
     "serialConnectSuccess": "★ 串口连接成功 ★",
     "date": "日期",
     "time": "时间",
