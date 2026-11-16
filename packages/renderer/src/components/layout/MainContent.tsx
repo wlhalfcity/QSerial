@@ -263,12 +263,18 @@ export const MainContent: React.FC = () => {
           </div>
         ) : (
           <div className="flex-1 min-h-0 flex flex-col">
-            <div className="flex shrink-0 gap-3 px-2 py-1 border-b border-border text-xs">
-              <button onClick={() => layout.toggle(ids, activeId || null)}>
+            <div className="flex shrink-0 items-center gap-2 px-2 py-1 border-b border-border text-xs">
+              <button
+                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+                onClick={() => layout.toggle(ids, activeId || null)}
+              >
                 {t(split ? 'mainContent.single' : 'mainContent.split')}
               </button>
               {split && (
-                <button onClick={() => layout.reset(ids, activeId || null)}>
+                <button
+                  className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+                  onClick={() => layout.reset(ids, activeId || null)}
+                >
                   {t('mainContent.resetLayout')}
                 </button>
               )}

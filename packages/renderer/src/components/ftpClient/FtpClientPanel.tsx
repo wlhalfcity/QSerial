@@ -241,44 +241,48 @@ export const FtpClientPanel: React.FC = () => {
         {profiles.map((p) => (
           <div
             key={p.id}
-            className="border border-border rounded p-1 text-xs"
+            className="border border-border rounded p-2 text-xs space-y-2"
             onDoubleClick={() => void connectForm(p)}
             onKeyDown={(e) => {
               if (e.target === e.currentTarget && e.key === 'Enter') void connectForm(p);
             }}
             tabIndex={0}
           >
-            <span className="block break-all">
-              {p.name} · {p.user}@{p.host}:{p.port}
+            <span className="block truncate font-medium" title={p.name}>
+              {p.name}
             </span>
-            <button
-              onDoubleClick={(e) => e.stopPropagation()}
-              onClick={() => {
-                setEditing(true);
-                setProfileId(p.id);
-                setProfileName(p.name);
-                setHost(p.host);
-                setPort(String(p.port));
-                setUser(p.user);
-                setPassword(p.password);
-              }}
-            >
-              {t('ftpClient.editProfile')}
-            </button>
-            <button
-              onDoubleClick={(e) => e.stopPropagation()}
-              onClick={() => {
-                if (window.confirm(t('ftpClient.deleteConfirm'))) {
-                  remove(p.id);
-                  if (profileId === p.id) {
-                    setProfileId('');
-                    setEditing(false);
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+                onDoubleClick={(e) => e.stopPropagation()}
+                onClick={() => {
+                  setEditing(true);
+                  setProfileId(p.id);
+                  setProfileName(p.name);
+                  setHost(p.host);
+                  setPort(String(p.port));
+                  setUser(p.user);
+                  setPassword(p.password);
+                }}
+              >
+                {t('ftpClient.editProfile')}
+              </button>
+              <button
+                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+                onDoubleClick={(e) => e.stopPropagation()}
+                onClick={() => {
+                  if (window.confirm(t('ftpClient.deleteConfirm'))) {
+                    remove(p.id);
+                    if (profileId === p.id) {
+                      setProfileId('');
+                      setEditing(false);
+                    }
                   }
-                }
-              }}
-            >
-              {t('ftpClient.deleteProfile')}
-            </button>
+                }}
+              >
+                {t('ftpClient.deleteProfile')}
+              </button>
+            </div>
           </div>
         ))}
       </aside>
@@ -308,6 +312,7 @@ export const FtpClientPanel: React.FC = () => {
               onChange={(e) => setProfileName(e.target.value)}
             />
             <button
+              className="dialog-btn dialog-btn-primary text-xs px-3 py-1.5 self-start"
               onClick={() => {
                 const form = validForm();
                 if (!form) return;
@@ -319,7 +324,14 @@ export const FtpClientPanel: React.FC = () => {
             >
               {t('ftpClient.saveProfile')}
             </button>
-            {session && <button onClick={() => setEditing(false)}>{t('common.cancel')}</button>}
+            {session && (
+              <button
+                className="dialog-btn dialog-btn-secondary text-xs px-3 py-1.5 self-start"
+                onClick={() => setEditing(false)}
+              >
+                {t('common.cancel')}
+              </button>
+            )}
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">
                 {t('ftpClient.host')}

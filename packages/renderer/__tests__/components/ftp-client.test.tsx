@@ -53,13 +53,13 @@ describe('FTP saved connections', () => {
   });
   it('connects using saved parameters on double click', async () => {
     render(<FtpClientPanel />);
-    fireEvent.doubleClick(screen.getByText(/Server ·/));
+    fireEvent.doubleClick(screen.getByText('Server', { selector: 'span' }));
     await waitFor(() => expect(connect).toHaveBeenCalledWith(profile));
   });
   it('does not switch while connecting or transferring', () => {
     useFtpClientStore.setState({ connecting: true });
     render(<FtpClientPanel />);
-    fireEvent.doubleClick(screen.getByText(/Server ·/));
+    fireEvent.doubleClick(screen.getByText('Server', { selector: 'span' }));
     expect(connect).not.toHaveBeenCalled();
     act(() =>
       useFtpClientStore.setState({
@@ -78,7 +78,7 @@ describe('FTP saved connections', () => {
         ],
       })
     );
-    fireEvent.doubleClick(screen.getByText(/Server ·/));
+    fireEvent.doubleClick(screen.getByText('Server', { selector: 'span' }));
     expect(connect).not.toHaveBeenCalled();
   });
   it('allows editing without connecting and keeps password masked', () => {
@@ -126,11 +126,11 @@ describe('FTP saved connections', () => {
     });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<FtpClientPanel />);
-    fireEvent.doubleClick(screen.getByText(/Server ·/));
+    fireEvent.doubleClick(screen.getByText('Server', { selector: 'span' }));
     expect(disconnect).not.toHaveBeenCalled();
     expect(connect).not.toHaveBeenCalled();
     confirm.mockReturnValue(true);
-    fireEvent.doubleClick(screen.getByText(/Server ·/));
+    fireEvent.doubleClick(screen.getByText('Server', { selector: 'span' }));
     await waitFor(() => expect(connect).toHaveBeenCalledWith(profile));
     expect(disconnect).toHaveBeenCalledOnce();
     confirm.mockRestore();
@@ -138,7 +138,7 @@ describe('FTP saved connections', () => {
   it('keeps saved connection on login failure', async () => {
     connect.mockResolvedValueOnce(false);
     render(<FtpClientPanel />);
-    fireEvent.doubleClick(screen.getByText(/Server ·/));
+    fireEvent.doubleClick(screen.getByText('Server', { selector: 'span' }));
     await waitFor(() => expect(connect).toHaveBeenCalled());
     expect(useFtpProfiles.getState().profiles).toEqual([profile]);
   });
