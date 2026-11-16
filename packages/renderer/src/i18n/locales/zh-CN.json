@@ -182,7 +182,6 @@
       "exportFailed": "导出失败: {{message}}",
       "invalidConfigFile": "无效的配置文件",
       "importFailed": "导入失败: {{message}}",
-      "theme": "主题",
       "dark": "深色",
       "light": "浅色",
       "uiFont": "UI 字体",
@@ -573,14 +572,18 @@
     "maximize": "最大化"
   },
   "mainContent": {
-    "embeddedTool": "嵌入式终端调试工具"
+    "embeddedTool": "嵌入式终端调试工具",
+    "single": "单屏",
+    "split": "分屏",
+    "resetLayout": "重置排列",
+    "columnDivider": "调整列宽",
+    "rowDivider": "调整行高"
   },
   "terminalPane": {
     "commandInput": "指令输入",
     "commandPlaceholder": "输入指令后按 Enter 发送",
     "appendCRLF": "回车换行（CRLF）",
     "commandSendFailed": "指令发送失败",
-
     "serialConnectSuccess": "★ 串口连接成功 ★",
     "date": "日期",
     "time": "时间",
@@ -703,7 +706,19 @@
     "dropToUpload": "松开以上传到当前目录",
     "delete": "删除",
     "downloadTip": "双击下载",
-    "openTip": "双击进入"
+    "openTip": "双击进入",
+    "switchConfirm": "断开当前连接并切换？",
+    "editProfile": "编辑",
+    "deleteProfile": "删除",
+    "deleteConfirm": "删除此连接？",
+    "profileName": "连接名称",
+    "saveProfile": "保存连接",
+    "savedConnections": "已保存连接",
+    "newProfile": "新增连接",
+    "noProfiles": "暂无保存的连接",
+    "invalidProfile": "请输入主机及有效端口（1–65535）",
+    "connectionBusy": "正在连接或传输，请稍后再切换",
+    "connectFailed": "FTP连接失败"
   },
   "sftpPanel": {
     "newFolder": "新建文件夹",

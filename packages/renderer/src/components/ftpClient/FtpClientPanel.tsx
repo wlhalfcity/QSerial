@@ -8,7 +8,9 @@ import { useTranslation } from 'react-i18next';
 import type { FtpClientFileInfo } from '@qserial/shared';
 import { useFtpClientStore } from '@/stores/ftpClient';
 
-const PANEL_WIDTH = 360;
+import { globalError } from '../common/ErrorToast';
+import { useFtpProfiles } from '@/stores/ftpProfiles';
+const PANEL_WIDTH = 560;
 
 const IconFolder: React.FC<{ size?: number }> = ({ size = 14 }) => (
   <svg
@@ -76,6 +78,11 @@ export const FtpClientPanel: React.FC = () => {
   const uploadPaths = useFtpClientStore((s) => s.uploadPaths);
   const updateProgress = useFtpClientStore((s) => s.updateProgress);
 
+  const { profiles, save, remove } = useFtpProfiles();
+  const switchingRef = useRef(false);
+  const [editing, setEditing] = useState(false);
+  const [profileId, setProfileId] = useState('');
+  const [profileName, setProfileName] = useState('');
   const [host, setHost] = useState('');
   const [port, setPort] = useState('21');
   const [user, setUser] = useState('');
@@ -95,9 +102,41 @@ export const FtpClientPanel: React.FC = () => {
 
   const runningTransfer = [...transfers].reverse().find((x) => x.status === 'running');
 
+  const validForm = () => {
+    const n = Number(port);
+    if (!host.trim() || !Number.isInteger(n) || n < 1 || n > 65535) {
+      globalError.show(t('ftpClient.invalidProfile'));
+      return null;
+    }
+    return { host: host.trim(), port: n, user, password };
+  };
+  const connectForm = async (form: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+  }) => {
+    if (
+      switchingRef.current ||
+      useFtpClientStore.getState().connecting ||
+      useFtpClientStore.getState().transfers.some((x) => x.status === 'running')
+    ) {
+      globalError.show(t('ftpClient.connectionBusy'));
+      return;
+    }
+    if (useFtpClientStore.getState().session && !window.confirm(t('ftpClient.switchConfirm')))
+      return;
+    switchingRef.current = true;
+    try {
+      if (useFtpClientStore.getState().session) await disconnect();
+      if (await connect(form)) setEditing(false);
+    } finally {
+      switchingRef.current = false;
+    }
+  };
   const handleConnect = async () => {
-    if (!host.trim()) return;
-    await connect({ host: host.trim(), port: Number(port) || 21, user: user.trim(), password });
+    const form = validForm();
+    if (form) await connectForm(form);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -170,226 +209,313 @@ export const FtpClientPanel: React.FC = () => {
 
   return (
     <div
-      className="relative flex-shrink-0 border-l border-border bg-surface flex flex-col min-h-0"
-      style={{ width: PANEL_WIDTH }}
+      className="relative flex-shrink-0 border-l border-border bg-surface flex min-h-0"
+      style={{ width: PANEL_WIDTH, maxWidth: '75vw' }}
       onDragEnter={handleDragEnter}
       onDragOver={(e) => e.preventDefault()}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* 头部 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <span className="text-sm font-medium">
-          {session
-            ? `${session.host}${session.user ? ` · ${session.user}` : ''}`
-            : t('ftpClient.title')}
-        </span>
+      <aside
+        className="w-40 shrink-0 border-r border-border flex flex-col overflow-y-auto p-2 gap-2"
+        aria-label={t('ftpClient.savedConnections')}
+      >
+        <h3 className="text-xs font-medium">{t('ftpClient.savedConnections')}</h3>
         <button
-          onClick={() => (session ? void disconnect() : closePanel())}
-          className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+          className="text-xs border border-border rounded px-2 py-1"
+          onClick={() => {
+            setProfileId('');
+            setProfileName('');
+            setHost('');
+            setPort('21');
+            setUser('');
+            setPassword('');
+            setEditing(true);
+          }}
         >
-          {session ? t('ftpClient.disconnect') : t('common.close')}
+          {t('ftpClient.newProfile')}
         </button>
-      </div>
-
-      {!session ? (
-        /* 连接表单 */
-        <div className="flex-1 flex flex-col justify-center px-5 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              {t('ftpClient.host')}
-            </label>
-            <input
-              className="dialog-input"
-              value={host}
-              onChange={(e) => setHost(e.target.value)}
-              placeholder="192.168.1.100"
-              onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              {t('ftpClient.port')}
-            </label>
-            <input
-              className="dialog-input"
-              value={port}
-              onChange={(e) => setPort(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              {t('ftpClient.user')}
-            </label>
-            <input
-              className="dialog-input"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              placeholder={t('ftpClient.userHint')}
-              onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              {t('ftpClient.password')}
-            </label>
-            <input
-              type="password"
-              className="dialog-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
-            />
-          </div>
-          {session?.error && <div className="text-xs text-error">{session.error}</div>}
-          <button
-            onClick={() => void handleConnect()}
-            disabled={connecting || !host.trim()}
-            className="dialog-btn dialog-btn-primary disabled:opacity-50"
+        {profiles.length === 0 && (
+          <span className="text-xs text-text-secondary">{t('ftpClient.noProfiles')}</span>
+        )}
+        {profiles.map((p) => (
+          <div
+            key={p.id}
+            className="border border-border rounded p-1 text-xs"
+            onDoubleClick={() => void connectForm(p)}
+            onKeyDown={(e) => {
+              if (e.target === e.currentTarget && e.key === 'Enter') void connectForm(p);
+            }}
+            tabIndex={0}
           >
-            {connecting ? t('common.loading') : t('ftpClient.connect')}
+            <span className="block break-all">
+              {p.name} · {p.user}@{p.host}:{p.port}
+            </span>
+            <button
+              onDoubleClick={(e) => e.stopPropagation()}
+              onClick={() => {
+                setEditing(true);
+                setProfileId(p.id);
+                setProfileName(p.name);
+                setHost(p.host);
+                setPort(String(p.port));
+                setUser(p.user);
+                setPassword(p.password);
+              }}
+            >
+              {t('ftpClient.editProfile')}
+            </button>
+            <button
+              onDoubleClick={(e) => e.stopPropagation()}
+              onClick={() => {
+                if (window.confirm(t('ftpClient.deleteConfirm'))) {
+                  remove(p.id);
+                  if (profileId === p.id) {
+                    setProfileId('');
+                    setEditing(false);
+                  }
+                }
+              }}
+            >
+              {t('ftpClient.deleteProfile')}
+            </button>
+          </div>
+        ))}
+      </aside>
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col relative">
+        {/* 头部 */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+          <span className="text-sm font-medium">
+            {session
+              ? `${session.host}${session.user ? ` · ${session.user}` : ''}`
+              : t('ftpClient.title')}
+          </span>
+          <button
+            onClick={() => (session ? void disconnect() : closePanel())}
+            className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+          >
+            {session ? t('ftpClient.disconnect') : t('common.close')}
           </button>
         </div>
-      ) : (
-        <>
-          {/* 工具行 */}
-          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border flex-shrink-0">
-            <button
-              onClick={() => void goUp()}
-              disabled={session.currentPath === '/'}
-              className="dialog-btn dialog-btn-secondary text-xs px-2 py-1 disabled:opacity-40"
-              title=".."
-            >
-              ↑
-            </button>
-            <button
-              onClick={() => void refresh()}
-              className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
-            >
-              {t('ftpClient.refresh')}
-            </button>
+
+        {!session || editing ? (
+          /* 连接表单 */
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-5 py-4 gap-3">
+            <input
+              className="dialog-input"
+              value={profileName}
+              placeholder={t('ftpClient.profileName')}
+              onChange={(e) => setProfileName(e.target.value)}
+            />
             <button
               onClick={() => {
-                setCreatingFolder(true);
-                setNewFolderName('');
+                const form = validForm();
+                if (!form) return;
+                const id = profileId || crypto.randomUUID();
+                save({ ...form, id, name: profileName.trim() || `${form.host}:${form.port}` });
+                setProfileId(id);
+                if (session) setEditing(false);
               }}
-              className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
             >
-              {t('ftpClient.newFolder')}
+              {t('ftpClient.saveProfile')}
             </button>
-            <div className="ml-auto text-xs text-text-secondary truncate">
-              {t('ftpClient.dropHint')}
-            </div>
-          </div>
-
-          {/* 新建文件夹输入行 */}
-          {creatingFolder && (
-            <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border flex-shrink-0">
+            {session && <button onClick={() => setEditing(false)}>{t('common.cancel')}</button>}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                {t('ftpClient.host')}
+              </label>
               <input
-                autoFocus
-                className="dialog-input text-xs flex-1"
-                value={newFolderName}
-                placeholder={t('ftpClient.newFolderPlaceholder')}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === 'Enter' && newFolderName.trim()) {
-                    await mkdir(newFolderName.trim());
-                    setCreatingFolder(false);
-                  }
-                  if (e.key === 'Escape') setCreatingFolder(false);
-                }}
+                className="dialog-input"
+                value={host}
+                onChange={(e) => setHost(e.target.value)}
+                placeholder="192.168.1.100"
+                onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
               />
-              <button
-                onClick={async () => {
-                  if (newFolderName.trim()) await mkdir(newFolderName.trim());
-                  setCreatingFolder(false);
-                }}
-                className="dialog-btn dialog-btn-primary text-xs px-2 py-1"
-              >
-                {t('common.confirm')}
-              </button>
             </div>
-          )}
-
-          {/* 面包屑 */}
-          <div className="flex items-center px-2 h-6 border-b border-border text-xs overflow-x-auto flex-shrink-0">
-            {breadcrumbs.map((crumb, i) => (
-              <React.Fragment key={crumb.path}>
-                {i > 0 && <span className="px-0.5 text-text-secondary">/</span>}
-                <button
-                  onClick={() => void navigateTo(crumb.path)}
-                  className={`px-1 py-0.5 rounded hover:bg-hover transition-colors whitespace-nowrap ${
-                    i === breadcrumbs.length - 1
-                      ? 'text-text'
-                      : 'text-text-secondary hover:text-text'
-                  }`}
-                >
-                  {crumb.name}
-                </button>
-              </React.Fragment>
-            ))}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                {t('ftpClient.port')}
+              </label>
+              <input
+                className="dialog-input"
+                value={port}
+                onChange={(e) => setPort(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                {t('ftpClient.user')}
+              </label>
+              <input
+                className="dialog-input"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+                placeholder={t('ftpClient.userHint')}
+                onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                {t('ftpClient.password')}
+              </label>
+              <input
+                type="password"
+                className="dialog-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && void handleConnect()}
+              />
+            </div>
+            {session?.error && <div className="text-xs text-error">{session.error}</div>}
+            <button
+              onClick={() => void handleConnect()}
+              disabled={connecting || !host.trim()}
+              className="dialog-btn dialog-btn-primary disabled:opacity-50"
+            >
+              {connecting ? t('common.loading') : t('ftpClient.connect')}
+            </button>
           </div>
+        ) : (
+          <>
+            {/* 工具行 */}
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border flex-shrink-0">
+              <button
+                onClick={() => void goUp()}
+                disabled={session.currentPath === '/'}
+                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1 disabled:opacity-40"
+                title=".."
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => void refresh()}
+                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+              >
+                {t('ftpClient.refresh')}
+              </button>
+              <button
+                onClick={() => {
+                  setCreatingFolder(true);
+                  setNewFolderName('');
+                }}
+                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+              >
+                {t('ftpClient.newFolder')}
+              </button>
+              <div className="ml-auto text-xs text-text-secondary truncate">
+                {t('ftpClient.dropHint')}
+              </div>
+            </div>
 
-          {/* 表头 */}
-          <div className="flex items-center px-2 h-6 border-b border-border text-xs text-text-secondary flex-shrink-0 select-none">
-            <span className="flex-1 min-w-0">{t('ftpClient.name')}</span>
-            <span className="w-16 text-right">{t('ftpClient.size')}</span>
-            <span className="w-28 text-right">{t('ftpClient.modified')}</span>
-          </div>
-
-          {/* 文件列表 */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            {session.loading ? (
-              <div className="flex items-center justify-center h-20 text-text-secondary text-xs">
-                {t('common.loading')}
-              </div>
-            ) : session.error ? (
-              <div className="flex items-center justify-center h-20 text-error text-xs px-2 text-center">
-                {session.error}
-              </div>
-            ) : session.files.length === 0 ? (
-              <div className="flex items-center justify-center h-20 text-text-secondary text-xs">
-                {t('ftpClient.emptyDir')}
-              </div>
-            ) : (
-              <div className="py-0.5">
-                {session.files.map((file) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-hover border-l-2 border-transparent transition-colors"
-                    onDoubleClick={() => void handleDoubleClick(file)}
-                    title={
-                      file.type === 'file' ? t('ftpClient.downloadTip') : t('ftpClient.openTip')
+            {/* 新建文件夹输入行 */}
+            {creatingFolder && (
+              <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border flex-shrink-0">
+                <input
+                  autoFocus
+                  className="dialog-input text-xs flex-1"
+                  value={newFolderName}
+                  placeholder={t('ftpClient.newFolderPlaceholder')}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && newFolderName.trim()) {
+                      await mkdir(newFolderName.trim());
+                      setCreatingFolder(false);
                     }
-                  >
-                    <FileIcon file={file} />
-                    <span className="flex-1 text-xs truncate">{file.name}</span>
-                    <span className="text-xs text-text-secondary w-16 text-right flex-shrink-0">
-                      {file.type === 'file' ? formatSize(file.size) : ''}
-                    </span>
-                    <span className="text-xs text-text-secondary w-28 text-right flex-shrink-0">
-                      {formatTime(file.modifyTime)}
-                    </span>
-                  </div>
-                ))}
+                    if (e.key === 'Escape') setCreatingFolder(false);
+                  }}
+                />
+                <button
+                  onClick={async () => {
+                    if (newFolderName.trim()) await mkdir(newFolderName.trim());
+                    setCreatingFolder(false);
+                  }}
+                  className="dialog-btn dialog-btn-primary text-xs px-2 py-1"
+                >
+                  {t('common.confirm')}
+                </button>
               </div>
             )}
-          </div>
 
-          {/* 拖拽覆盖提示 */}
-          {dragOver && (
-            <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary flex items-center justify-center pointer-events-none">
-              <span className="text-sm text-primary font-medium">
-                {t('ftpClient.dropToUpload')}
-              </span>
+            {/* 面包屑 */}
+            <div className="flex items-center px-2 h-6 border-b border-border text-xs overflow-x-auto flex-shrink-0">
+              {breadcrumbs.map((crumb, i) => (
+                <React.Fragment key={crumb.path}>
+                  {i > 0 && <span className="px-0.5 text-text-secondary">/</span>}
+                  <button
+                    onClick={() => void navigateTo(crumb.path)}
+                    className={`px-1 py-0.5 rounded hover:bg-hover transition-colors whitespace-nowrap ${
+                      i === breadcrumbs.length - 1
+                        ? 'text-text'
+                        : 'text-text-secondary hover:text-text'
+                    }`}
+                  >
+                    {crumb.name}
+                  </button>
+                </React.Fragment>
+              ))}
             </div>
-          )}
-        </>
-      )}
 
-      {/* 传输进度 */}
-      {renderRunningTransfer()}
+            {/* 表头 */}
+            <div className="flex items-center px-2 h-6 border-b border-border text-xs text-text-secondary flex-shrink-0 select-none">
+              <span className="flex-1 min-w-0">{t('ftpClient.name')}</span>
+              <span className="w-16 text-right">{t('ftpClient.size')}</span>
+              <span className="w-28 text-right">{t('ftpClient.modified')}</span>
+            </div>
+
+            {/* 文件列表 */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {session.loading ? (
+                <div className="flex items-center justify-center h-20 text-text-secondary text-xs">
+                  {t('common.loading')}
+                </div>
+              ) : session.error ? (
+                <div className="flex items-center justify-center h-20 text-error text-xs px-2 text-center">
+                  {session.error}
+                </div>
+              ) : session.files.length === 0 ? (
+                <div className="flex items-center justify-center h-20 text-text-secondary text-xs">
+                  {t('ftpClient.emptyDir')}
+                </div>
+              ) : (
+                <div className="py-0.5">
+                  {session.files.map((file) => (
+                    <div
+                      key={file.name}
+                      className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-hover border-l-2 border-transparent transition-colors"
+                      onDoubleClick={() => void handleDoubleClick(file)}
+                      title={
+                        file.type === 'file' ? t('ftpClient.downloadTip') : t('ftpClient.openTip')
+                      }
+                    >
+                      <FileIcon file={file} />
+                      <span className="flex-1 text-xs truncate">{file.name}</span>
+                      <span className="text-xs text-text-secondary w-16 text-right flex-shrink-0">
+                        {file.type === 'file' ? formatSize(file.size) : ''}
+                      </span>
+                      <span className="text-xs text-text-secondary w-28 text-right flex-shrink-0">
+                        {formatTime(file.modifyTime)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 拖拽覆盖提示 */}
+            {dragOver && (
+              <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary flex items-center justify-center pointer-events-none">
+                <span className="text-sm text-primary font-medium">
+                  {t('ftpClient.dropToUpload')}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 传输进度 */}
+        {renderRunningTransfer()}
+      </div>
     </div>
   );
 };

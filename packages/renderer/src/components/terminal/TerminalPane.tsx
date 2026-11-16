@@ -2,7 +2,9 @@
  * 终端面板组件
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { CommandInputHostContext } from './command-input-host';
 import { useTranslation } from 'react-i18next';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -40,12 +42,14 @@ interface TerminalPaneProps {
   sessionId: string;
   connectionId: string;
   isActive: boolean;
+  isVisible?: boolean;
   activeTabId?: string | null;
 }
 
 export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
-  ({ sessionId, connectionId, isActive, activeTabId }) => {
+  ({ sessionId, connectionId, isActive, isVisible = isActive, activeTabId }) => {
     const { t } = useTranslation();
+    const commandInputHost = useContext(CommandInputHostContext);
     const containerRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<XTerm | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
@@ -696,7 +700,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
 
     // 激活时聚焦和调整尺寸
     useEffect(() => {
-      if (isActive && xtermRef.current) {
+      if (isVisible && xtermRef.current) {
         // 延迟调整尺寸，确保容器已显示
         setTimeout(() => {
           if (xtermRef.current && fitAddonRef.current) {
@@ -707,9 +711,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
             }
           }
         }, 50);
-        xtermRef.current.focus();
+        if (isActive) xtermRef.current.focus();
       }
-    }, [isActive, activeTabId]);
+    }, [isActive, isVisible, activeTabId]);
 
     // 搜索状态管理 — 使用 ref 避免闭包陈旧问题
     const searchStateRef = useRef({ text: '', filterText: '', caseSensitive: false });
@@ -970,7 +974,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     return (
       <div
         className="absolute inset-0 flex flex-col"
-        style={{ visibility: isActive ? 'visible' : 'hidden' }}
+        style={{ visibility: isVisible ? 'visible' : 'hidden' }}
       >
         <div
           ref={containerRef}
@@ -979,7 +983,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
             position: 'relative',
             flex: '1 1 0%',
             minHeight: 0,
-            visibility: isActive ? 'visible' : 'hidden',
+            visibility: isVisible ? 'visible' : 'hidden',
           }}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -1498,45 +1502,50 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
             defaultSessionId={sessionId}
           />
         </div>
-        <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface px-3 py-2">
-          <input
-            type="text"
-            aria-label={t('terminalPane.commandInput')}
-            placeholder={t('terminalPane.commandPlaceholder')}
-            className="min-w-0 flex-1 rounded border border-border bg-transparent px-2 py-1 text-sm text-text-primary focus:outline-none focus:border-primary"
-            value={command}
-            aria-busy={sending}
-            onChange={(e) => {
-              commandVersionRef.current++;
-              setCommand(e.target.value);
-            }}
-            onCompositionStart={() => {
-              commandCompositionRef.current = true;
-            }}
-            onCompositionEnd={() => {
-              commandCompositionRef.current = false;
-            }}
-            onKeyDown={(e) => {
-              if (
-                e.key === 'Enter' &&
-                !e.nativeEvent.isComposing &&
-                !commandCompositionRef.current &&
-                e.keyCode !== 229
-              ) {
-                e.preventDefault();
-                if (!e.repeat) void sendCommand();
-              }
-            }}
-          />
-          <label className="flex shrink-0 items-center gap-1.5 text-xs text-text-secondary">
-            <input
-              type="checkbox"
-              checked={appendCRLF}
-              onChange={(e) => setAppendCRLF(e.target.checked)}
-            />
-            {t('terminalPane.appendCRLF')}
-          </label>
-        </div>
+        {isActive &&
+          commandInputHost &&
+          createPortal(
+            <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface px-3 py-2">
+              <input
+                type="text"
+                aria-label={t('terminalPane.commandInput')}
+                placeholder={t('terminalPane.commandPlaceholder')}
+                className="min-w-0 flex-1 rounded border border-border bg-transparent px-2 py-1 text-sm text-text-primary placeholder:text-text-secondary/35 placeholder:text-xs focus:outline-none focus:border-primary"
+                value={command}
+                aria-busy={sending}
+                onChange={(e) => {
+                  commandVersionRef.current++;
+                  setCommand(e.target.value);
+                }}
+                onCompositionStart={() => {
+                  commandCompositionRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  commandCompositionRef.current = false;
+                }}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === 'Enter' &&
+                    !e.nativeEvent.isComposing &&
+                    !commandCompositionRef.current &&
+                    e.keyCode !== 229
+                  ) {
+                    e.preventDefault();
+                    if (!e.repeat) void sendCommand();
+                  }
+                }}
+              />
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={appendCRLF}
+                  onChange={(e) => setAppendCRLF(e.target.checked)}
+                />
+                {t('terminalPane.appendCRLF')}
+              </label>
+            </div>,
+            commandInputHost
+          )}
       </div>
     );
   }

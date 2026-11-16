@@ -18,7 +18,10 @@ import { ErrorToast, useGlobalError } from '../common/ErrorToast';
 import { useGlobalShortcuts } from '../../hooks/useGlobalShortcuts';
 import type { TftpTransferEvent } from '@qserial/shared';
 
+import { CommandInputHostContext } from '../terminal/command-input-host';
+
 export const Layout: React.FC = () => {
+  const [commandInputHost, setCommandInputHost] = React.useState<HTMLDivElement | null>(null);
   const { currentTheme } = useThemeStore();
   const hasTexture = Boolean(currentTheme.ui.texture);
   const [showSettings, setShowSettings] = React.useState(false);
@@ -61,7 +64,9 @@ export const Layout: React.FC = () => {
 
         <div className="flex-1 min-h-0 flex flex-col bg-background">
           {/* 主内容 */}
-          <MainContent />
+          <CommandInputHostContext.Provider value={commandInputHost}>
+            <MainContent />
+          </CommandInputHostContext.Provider>
 
           {/* 快捷按钮栏 — 终端底部，始终可见 */}
           {!isVertical && (
@@ -69,6 +74,7 @@ export const Layout: React.FC = () => {
               <QuickButtonBar direction="horizontal" />
             </div>
           )}
+          <div ref={setCommandInputHost} className="shrink-0" />
         </div>
 
         {/* 智能助手面板 */}

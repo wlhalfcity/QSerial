@@ -1,17 +1,38 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTerminalStore } from '@/stores/terminal';
 import { TerminalPane } from '../terminal/TerminalPane';
 import { SftpPanel } from '../sftp';
 import { useSftpStore } from '@/stores/sftp';
 
+import { useTerminalLayoutStore, paneBounds } from '@/stores/terminal-layout';
+
 export const MainContent: React.FC = () => {
+  const layout = useTerminalLayoutStore();
+  const { split, visible, columns, rows } = layout;
+  const dragged = useRef<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
   const tabs = useTerminalStore((state) => state.tabs);
   const activeTabId = useTerminalStore((state) => state.activeTabId);
   const { panelVisible } = useSftpStore();
 
-  const terminalPanes = useMemo(() => {
+  const ids = useMemo(() => tabs.flatMap((tab) => tab.sessions), [tabs]);
+  const activeId = tabs.find((tab) => tab.id === activeTabId)?.activeSessionId;
+  const syncLayout = layout.sync;
+  useEffect(() => {
+    syncLayout(ids, activeId || null);
+  }, [ids, activeId, split, syncLayout]);
+  const resize = (axis: 'columns' | 'rows', event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const ratio =
+      axis === 'columns'
+        ? (event.clientX - rect.left) / rect.width
+        : (event.clientY - rect.top) / rect.height;
+    layout.resize(axis, ratio * 100);
+  };
+  const renderPanes = () => {
     const panes: React.ReactNode[] = [];
     const sessions = useTerminalStore.getState().sessions;
     for (const tab of tabs) {
@@ -19,18 +40,48 @@ export const MainContent: React.FC = () => {
         const session = sessions[sessionId];
         if (!session) continue;
         panes.push(
-          <TerminalPane
+          <div
             key={sessionId}
-            sessionId={sessionId}
-            connectionId={session.connectionId}
-            isActive={tab.id === activeTabId && sessionId === tab.activeSessionId}
-            activeTabId={activeTabId}
-          />
+            className={`absolute overflow-hidden ${sessionId === activeId && split ? 'ring-1 ring-inset ring-primary' : ''}`}
+            style={
+              split && visible.includes(sessionId)
+                ? paneBounds(visible.indexOf(sessionId), visible.length, columns, rows)
+                : { inset: 0, visibility: !split && sessionId === activeId ? 'visible' : 'hidden' }
+            }
+            onPointerDownCapture={() => useTerminalStore.getState().focusSession(sessionId)}
+          >
+            {split && visible.includes(sessionId) && (
+              <div
+                draggable
+                onDragStart={() => {
+                  dragged.current = sessionId;
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragged.current) layout.swap(dragged.current, sessionId);
+                  dragged.current = null;
+                }}
+                className="absolute top-0 left-0 right-0 h-6 z-20 bg-surface border border-border text-xs cursor-move px-2 truncate"
+              >
+                {session.name}
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0" style={{ top: split ? 24 : 0 }}>
+              <TerminalPane
+                key={sessionId}
+                sessionId={sessionId}
+                connectionId={session.connectionId}
+                isActive={sessionId === activeId}
+                isVisible={split ? visible.includes(sessionId) : sessionId === activeId}
+                activeTabId={activeTabId}
+              />
+            </div>
+          </div>
         );
       }
     }
     return panes;
-  }, [tabs, activeTabId]);
+  };
 
   return (
     <div className="flex-1 min-h-0 bg-background flex main-content-container">
@@ -211,8 +262,65 @@ export const MainContent: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="flex-1 min-h-0 relative overflow-hidden bg-background">
-            {terminalPanes}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex shrink-0 gap-3 px-2 py-1 border-b border-border text-xs">
+              <button onClick={() => layout.toggle(ids, activeId || null)}>
+                {t(split ? 'mainContent.single' : 'mainContent.split')}
+              </button>
+              {split && (
+                <button onClick={() => layout.reset(ids, activeId || null)}>
+                  {t('mainContent.resetLayout')}
+                </button>
+              )}
+            </div>
+            <div ref={gridRef} className="flex-1 min-h-0 relative overflow-hidden bg-background">
+              {renderPanes()}
+              {split && visible.length > 1 && (
+                <div
+                  role="separator"
+                  aria-label={t('mainContent.columnDivider')}
+                  aria-orientation="vertical"
+                  tabIndex={0}
+                  className="absolute inset-y-0 w-1 z-30 cursor-col-resize bg-border hover:bg-primary touch-none"
+                  style={{ left: `calc(${columns}% - 2px)` }}
+                  onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
+                  onPointerMove={(e) => {
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) resize('columns', e);
+                  }}
+                  onPointerUp={(e) => e.currentTarget.releasePointerCapture(e.pointerId)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      layout.resize('columns', columns + (e.key === 'ArrowLeft' ? -2 : 2));
+                    }
+                  }}
+                />
+              )}
+              {split && visible.length > 2 && (
+                <div
+                  role="separator"
+                  aria-label={t('mainContent.rowDivider')}
+                  aria-orientation="horizontal"
+                  tabIndex={0}
+                  className="absolute right-0 h-1 z-30 cursor-row-resize bg-border hover:bg-primary touch-none"
+                  style={{
+                    top: `calc(${rows}% - 2px)`,
+                    left: visible.length === 3 ? `${columns}%` : 0,
+                  }}
+                  onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
+                  onPointerMove={(e) => {
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) resize('rows', e);
+                  }}
+                  onPointerUp={(e) => e.currentTarget.releasePointerCapture(e.pointerId)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      layout.resize('rows', rows + (e.key === 'ArrowUp' ? -2 : 2));
+                    }
+                  }}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>

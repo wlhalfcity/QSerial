@@ -182,7 +182,6 @@
       "exportFailed": "Export failed: {{message}}",
       "invalidConfigFile": "Invalid configuration file",
       "importFailed": "Import failed: {{message}}",
-      "theme": "Theme",
       "dark": "Dark",
       "light": "Light",
       "uiFont": "UI Font",
@@ -573,14 +572,18 @@
     "maximize": "Maximize"
   },
   "mainContent": {
-    "embeddedTool": "Embedded Terminal Debug Tool"
+    "embeddedTool": "Embedded Terminal Debug Tool",
+    "single": "Single",
+    "split": "Split",
+    "resetLayout": "Reset layout",
+    "columnDivider": "Resize columns",
+    "rowDivider": "Resize rows"
   },
   "terminalPane": {
     "commandInput": "Command input",
     "commandPlaceholder": "Type a command and press Enter",
     "appendCRLF": "Append CRLF",
     "commandSendFailed": "Failed to send command",
-
     "serialConnectSuccess": "★ Serial connected ★",
     "date": "Date",
     "time": "Time",
@@ -703,7 +706,19 @@
     "dropToUpload": "Drop to upload into this folder",
     "delete": "Delete",
     "downloadTip": "Double-click to download",
-    "openTip": "Double-click to open"
+    "openTip": "Double-click to open",
+    "switchConfirm": "Disconnect and switch?",
+    "editProfile": "Edit",
+    "deleteProfile": "Delete",
+    "deleteConfirm": "Delete connection?",
+    "profileName": "Connection name",
+    "saveProfile": "Save connection",
+    "savedConnections": "Saved connections",
+    "newProfile": "New connection",
+    "noProfiles": "No saved connections",
+    "invalidProfile": "Enter a host and valid port (1–65535)",
+    "connectionBusy": "Connection or transfer in progress",
+    "connectFailed": "FTP connection failed"
   },
   "sftpPanel": {
     "newFolder": "New Folder",

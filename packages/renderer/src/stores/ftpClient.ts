@@ -6,6 +6,8 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { FtpClientFileInfo, FtpClientProgressEvent } from '@qserial/shared';
+import { globalError } from '../components/common/ErrorToast';
+import i18n from '../i18n';
 import { useAssistantStore } from './assistant';
 
 export interface FtpClientConnectForm {
@@ -90,6 +92,7 @@ export const useFtpClientStore = create<FtpClientState>()(
     },
 
     connect: async (form) => {
+      if (get().connecting || get().session) return false;
       set((state) => {
         state.connecting = true;
       });
@@ -111,6 +114,7 @@ export const useFtpClientStore = create<FtpClientState>()(
         await get().navigateTo('/');
         return true;
       } catch (error) {
+        globalError.show(i18n.t('ftpClient.connectFailed') + ': ' + (error as Error).message);
         set((state) => {
           if (state.session) {
             state.session.error = (error as Error).message;

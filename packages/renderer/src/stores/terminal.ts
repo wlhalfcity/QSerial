@@ -42,6 +42,8 @@ interface TerminalState {
   activeTabId: string | null;
   sessions: Record<string, Session>;
 
+  focusSession: (id: string) => void;
+
   // Tab 操作
   createTab: (name?: string) => string;
   closeTab: (tabId: string) => void;
@@ -84,6 +86,14 @@ export const useTerminalStore = create<TerminalState>()(
     activeTabId: null,
     sessions: {},
 
+    focusSession: (id) =>
+      set((state) => {
+        const tab = state.tabs.find((t) => t.sessions.includes(id));
+        if (tab) {
+          state.activeTabId = tab.id;
+          tab.activeSessionId = id;
+        }
+      }),
     createTab: (name) => {
       const tabId = crypto.randomUUID();
       set((state) => {
