@@ -581,6 +581,7 @@
   },
   "terminalPane": {
     "commandInput": "指令输入",
+    "recallCommand": "回填更早的指令",
     "commandPlaceholder": "输入指令后按 Enter 发送",
     "appendCRLF": "回车换行（CRLF）",
     "commandSendFailed": "指令发送失败",

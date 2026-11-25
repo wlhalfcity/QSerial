@@ -581,6 +581,7 @@
   },
   "terminalPane": {
     "commandInput": "Command input",
+    "recallCommand": "Recall an earlier command",
     "commandPlaceholder": "Type a command and press Enter",
     "appendCRLF": "Append CRLF",
     "commandSendFailed": "Failed to send command",

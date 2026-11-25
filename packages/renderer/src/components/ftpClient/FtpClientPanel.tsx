@@ -10,7 +10,10 @@ import { useFtpClientStore } from '@/stores/ftpClient';
 
 import { globalError } from '../common/ErrorToast';
 import { useFtpProfiles } from '@/stores/ftpProfiles';
-const PANEL_WIDTH = 560;
+const PANEL_WIDTH = 720;
+
+const profileActionClass =
+  'rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary';
 
 const IconFolder: React.FC<{ size?: number }> = ({ size = 14 }) => (
   <svg
@@ -217,12 +220,12 @@ export const FtpClientPanel: React.FC = () => {
       onDrop={handleDrop}
     >
       <aside
-        className="w-40 shrink-0 border-r border-border flex flex-col overflow-y-auto p-2 gap-2"
+        className="w-[36%] max-w-64 shrink-0 border-r border-border flex flex-col overflow-y-auto p-3 gap-2"
         aria-label={t('ftpClient.savedConnections')}
       >
-        <h3 className="text-xs font-medium">{t('ftpClient.savedConnections')}</h3>
+        <h3 className="px-1 py-1 text-sm font-semibold">{t('ftpClient.savedConnections')}</h3>
         <button
-          className="text-xs border border-border rounded px-2 py-1"
+          className="mb-1 flex items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           onClick={() => {
             setProfileId('');
             setProfileName('');
@@ -233,6 +236,9 @@ export const FtpClientPanel: React.FC = () => {
             setEditing(true);
           }}
         >
+          <span aria-hidden="true" className="text-base leading-none">
+            +
+          </span>
           {t('ftpClient.newProfile')}
         </button>
         {profiles.length === 0 && (
@@ -241,19 +247,29 @@ export const FtpClientPanel: React.FC = () => {
         {profiles.map((p) => (
           <div
             key={p.id}
-            className="border border-border rounded p-2 text-xs space-y-2"
+            className={`rounded-lg border px-3 py-2 transition-colors hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${
+              profileId === p.id ? 'border-primary bg-hover' : 'border-border bg-background'
+            }`}
             onDoubleClick={() => void connectForm(p)}
             onKeyDown={(e) => {
               if (e.target === e.currentTarget && e.key === 'Enter') void connectForm(p);
             }}
             tabIndex={0}
           >
-            <span className="block truncate font-medium" title={p.name}>
+            <span className="block truncate text-sm font-semibold" title={p.name}>
               {p.name}
             </span>
-            <div className="flex flex-wrap gap-1.5">
+            {p.name !== `${p.host}:${p.port}` && (
+              <span
+                className="mt-0.5 block truncate text-xs text-text-secondary"
+                title={`${p.host}:${p.port}`}
+              >
+                {p.host}:{p.port}
+              </span>
+            )}
+            <div className="-ml-2 mt-1 flex flex-wrap gap-x-1">
               <button
-                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+                className={`${profileActionClass} text-text-secondary hover:text-text`}
                 onDoubleClick={(e) => e.stopPropagation()}
                 onClick={() => {
                   setEditing(true);
@@ -268,7 +284,7 @@ export const FtpClientPanel: React.FC = () => {
                 {t('ftpClient.editProfile')}
               </button>
               <button
-                className="dialog-btn dialog-btn-secondary text-xs px-2 py-1"
+                className={`${profileActionClass} text-text-secondary hover:text-error`}
                 onDoubleClick={(e) => e.stopPropagation()}
                 onClick={() => {
                   if (window.confirm(t('ftpClient.deleteConfirm'))) {
@@ -305,33 +321,20 @@ export const FtpClientPanel: React.FC = () => {
         {!session || editing ? (
           /* 连接表单 */
           <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-5 py-4 gap-3">
-            <input
-              className="dialog-input"
-              value={profileName}
-              placeholder={t('ftpClient.profileName')}
-              onChange={(e) => setProfileName(e.target.value)}
-            />
-            <button
-              className="dialog-btn dialog-btn-primary text-xs px-3 py-1.5 self-start"
-              onClick={() => {
-                const form = validForm();
-                if (!form) return;
-                const id = profileId || crypto.randomUUID();
-                save({ ...form, id, name: profileName.trim() || `${form.host}:${form.port}` });
-                setProfileId(id);
-                if (session) setEditing(false);
-              }}
-            >
-              {t('ftpClient.saveProfile')}
-            </button>
-            {session && (
-              <button
-                className="dialog-btn dialog-btn-secondary text-xs px-3 py-1.5 self-start"
-                onClick={() => setEditing(false)}
+            <div>
+              <label
+                htmlFor="ftp-profile-name"
+                className="mb-1 block text-xs font-medium text-text-secondary"
               >
-                {t('common.cancel')}
-              </button>
-            )}
+                {t('ftpClient.profileName')}
+              </label>
+              <input
+                className="dialog-input"
+                value={profileName}
+                id="ftp-profile-name"
+                onChange={(e) => setProfileName(e.target.value)}
+              />
+            </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">
                 {t('ftpClient.host')}
@@ -380,13 +383,36 @@ export const FtpClientPanel: React.FC = () => {
               />
             </div>
             {session?.error && <div className="text-xs text-error">{session.error}</div>}
-            <button
-              onClick={() => void handleConnect()}
-              disabled={connecting || !host.trim()}
-              className="dialog-btn dialog-btn-primary disabled:opacity-50"
-            >
-              {connecting ? t('common.loading') : t('ftpClient.connect')}
-            </button>
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+              {session && (
+                <button
+                  className="dialog-btn dialog-btn-secondary"
+                  onClick={() => setEditing(false)}
+                >
+                  {t('common.cancel')}
+                </button>
+              )}
+              <button
+                className="dialog-btn dialog-btn-secondary"
+                onClick={() => {
+                  const form = validForm();
+                  if (!form) return;
+                  const id = profileId || crypto.randomUUID();
+                  save({ ...form, id, name: profileName.trim() || `${form.host}:${form.port}` });
+                  setProfileId(id);
+                  if (session) setEditing(false);
+                }}
+              >
+                {t('ftpClient.saveProfile')}
+              </button>
+              <button
+                onClick={() => void handleConnect()}
+                disabled={connecting || !host.trim()}
+                className="dialog-btn dialog-btn-primary disabled:opacity-50"
+              >
+                {connecting ? t('common.loading') : t('ftpClient.connect')}
+              </button>
+            </div>
           </div>
         ) : (
           <>

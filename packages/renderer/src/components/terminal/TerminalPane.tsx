@@ -60,11 +60,26 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     const isComposingRef = useRef(false);
     const compositionDataRef = useRef<string>('');
     const [command, setCommand] = useState('');
+    const [commandHistory, setCommandHistory] = useState<string[]>([]);
+    const commandHistoryIndexRef = useRef(-1);
+    const commandDraftRef = useRef('');
+    const commandInputRef = useRef<HTMLInputElement>(null);
     const [appendCRLF, setAppendCRLF] = useState(true);
     const [sending, setSending] = useState(false);
     const sendingRef = useRef(false);
     const commandCompositionRef = useRef(false);
     const commandVersionRef = useRef(0);
+    const recallCommand = (direction: 1 | -1) => {
+      if (commandCompositionRef.current) return;
+      const index = commandHistoryIndexRef.current;
+      const next = index + direction;
+      if (next < -1 || next >= commandHistory.length) return;
+      if (index === -1) commandDraftRef.current = command;
+      commandHistoryIndexRef.current = next;
+      commandVersionRef.current++;
+      setCommand(next === -1 ? commandDraftRef.current : commandHistory[next]);
+      commandInputRef.current?.focus();
+    };
     const sendCommand = async () => {
       if (!command || sendingRef.current || session?.connectionState !== ConnectionState.CONNECTED)
         return;
@@ -74,6 +89,8 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
       setSending(true);
       try {
         await window.qserial.connection.write(connectionId, data);
+        setCommandHistory((history) => [command, ...history].slice(0, 10));
+        commandHistoryIndexRef.current = -1;
         useTerminalMacroStore.getState().addStep(data);
         lineBufferRef.current = '';
         if (commandVersionRef.current === version) setCommand('');
@@ -1507,6 +1524,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
           createPortal(
             <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface px-3 py-2">
               <input
+                ref={commandInputRef}
                 type="text"
                 aria-label={t('terminalPane.commandInput')}
                 placeholder={t('terminalPane.commandPlaceholder')}
@@ -1514,6 +1532,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
                 value={command}
                 aria-busy={sending}
                 onChange={(e) => {
+                  commandHistoryIndexRef.current = -1;
                   commandVersionRef.current++;
                   setCommand(e.target.value);
                 }}
@@ -1525,16 +1544,36 @@ export const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
                 }}
                 onKeyDown={(e) => {
                   if (
-                    e.key === 'Enter' &&
-                    !e.nativeEvent.isComposing &&
-                    !commandCompositionRef.current &&
-                    e.keyCode !== 229
+                    e.nativeEvent.isComposing ||
+                    commandCompositionRef.current ||
+                    e.keyCode === 229
+                  )
+                    return;
+                  if (
+                    (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+                    !e.ctrlKey &&
+                    !e.altKey &&
+                    !e.metaKey &&
+                    !e.shiftKey
                   ) {
+                    e.preventDefault();
+                    recallCommand(e.key === 'ArrowUp' ? 1 : -1);
+                  } else if (e.key === 'Enter') {
                     e.preventDefault();
                     if (!e.repeat) void sendCommand();
                   }
                 }}
               />
+              <button
+                type="button"
+                aria-label={t('terminalPane.recallCommand')}
+                title={t('terminalPane.recallCommand')}
+                className="shrink-0 rounded border border-border px-2 py-1 text-sm text-text-secondary hover:bg-hover hover:text-text-primary focus-visible:outline focus-visible:outline-primary disabled:opacity-40"
+                disabled={commandHistory.length === 0}
+                onClick={() => recallCommand(1)}
+              >
+                ↑
+              </button>
               <label className="flex shrink-0 items-center gap-1.5 text-xs text-text-secondary">
                 <input
                   type="checkbox"
